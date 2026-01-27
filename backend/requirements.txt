@@ -1,0 +1,33 @@
+# FastAPI 核心依赖
+fastapi==0.128.0
+uvicorn[standard]==0.34.0
+
+# 数据库
+sqlalchemy==2.0.36
+aiomysql==0.2.0
+pymysql==1.1.1
+greenlet==3.1.1
+
+# 认证与安全
+python-jose[cryptography]==3.3.0
+passlib[argon2]==1.7.4
+argon2-cffi==23.1.0
+cryptography==44.0
+
+# 请求处理
+httpx==0.28.1
+pydantic==2.10
+pydantic[email]==2.10
+
+# 工具
+python-multipart==0.0.20
+pyyaml==6.0.2
+
+# 日志
+python-dotenv==1.0.1
+
+# 速率限制
+slowapi==0.1.9
+
+# 下载与解压
+aiofiles==24.1.0
