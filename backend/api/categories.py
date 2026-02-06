@@ -3,7 +3,7 @@
 """
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete, text
 from sqlalchemy.orm import selectinload
 
 from database import get_db
@@ -222,17 +222,36 @@ async def assign_skill_to_category(
     db: AsyncSession = Depends(get_db)
 ):
     """将 Skill 分配到分类"""
-    category = await db.get(Category, category_id)
-    if not category:
+    # 使用纯 SQL 验证分类和技能存在
+    category_exists = await db.execute(
+        text("SELECT 1 FROM categories WHERE id = :cat_id LIMIT 1"),
+        {"cat_id": category_id}
+    )
+    if not category_exists.scalar_one_or_none():
         raise NotFoundError("Category", category_id)
 
-    skill = await db.get(Skill, skill_id)
-    if not skill:
+    skill_exists = await db.execute(
+        text("SELECT 1 FROM skills WHERE id = :skill_id LIMIT 1"),
+        {"skill_id": skill_id}
+    )
+    if not skill_exists.scalar_one_or_none():
         raise NotFoundError("Skill", skill_id)
 
-    if skill not in category.skills:
-        category.skills.append(skill)
-        await db.commit()
+    # 检查是否已存在绑定关系
+    existing = await db.execute(
+        text("SELECT 1 FROM category_skills WHERE category_id = :cat_id AND skill_id = :skill_id LIMIT 1"),
+        {"cat_id": category_id, "skill_id": skill_id}
+    )
+    if existing.scalar_one_or_none():
+        # 已存在，直接返回成功（幂等性）
+        return {"message": "Skill assigned to category"}
+
+    # 插入绑定记录
+    await db.execute(
+        text("INSERT INTO category_skills (category_id, skill_id) VALUES (:cat_id, :skill_id)"),
+        {"cat_id": category_id, "skill_id": skill_id}
+    )
+    await db.commit()
 
     return {"message": "Skill assigned to category"}
 
@@ -245,17 +264,27 @@ async def remove_skill_from_category(
     db: AsyncSession = Depends(get_db)
 ):
     """将 Skill 从分类中移除"""
-    category = await db.get(Category, category_id)
-    if not category:
+    # 使用纯 SQL 验证分类和技能存在，避免 ORM 延迟加载问题
+    category_exists = await db.execute(
+        text("SELECT 1 FROM categories WHERE id = :cat_id LIMIT 1"),
+        {"cat_id": category_id}
+    )
+    if not category_exists.scalar_one_or_none():
         raise NotFoundError("Category", category_id)
 
-    skill = await db.get(Skill, skill_id)
-    if not skill:
+    skill_exists = await db.execute(
+        text("SELECT 1 FROM skills WHERE id = :skill_id LIMIT 1"),
+        {"skill_id": skill_id}
+    )
+    if not skill_exists.scalar_one_or_none():
         raise NotFoundError("Skill", skill_id)
 
-    if skill in category.skills:
-        category.skills.remove(skill)
-        await db.commit()
+    # 使用原始 SQL 删除关联表记录
+    await db.execute(
+        text("DELETE FROM category_skills WHERE category_id = :cat_id AND skill_id = :skill_id"),
+        {"cat_id": category_id, "skill_id": skill_id}
+    )
+    await db.commit()
 
     return {"message": "Skill removed from category"}
 

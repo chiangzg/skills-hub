@@ -192,15 +192,22 @@ async function loadSkills(categoryId: number) {
 }
 
 function toggleCategory(cat: any) {
-  if (expandedCategories.value.has(cat.id)) {
+  const isExpanded = expandedCategories.value.has(cat.id)
+
+  if (isExpanded) {
+    // 收起时只做收起操作
     expandedCategories.value.delete(cat.id)
   } else {
+    // 展开时
     expandedCategories.value.add(cat.id)
-  }
-  
-  // 如果有子分类，自动选择第一个
-  if (cat.children && cat.children.length > 0 && !expandedCategories.value.has(cat.id)) {
-    viewCategory(cat.children[0])
+
+    // 如果有子分类，自动选择第一个
+    if (cat.children && cat.children.length > 0) {
+      viewCategory(cat.children[0])
+    } else {
+      // 没有子分类，直接选择当前分类
+      viewCategory(cat)
+    }
   }
 }
 
