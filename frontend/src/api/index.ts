@@ -51,6 +51,11 @@ class ApiClient {
       headers
     })
 
+    // 处理 204 No Content 响应（如 DELETE 请求）
+    if (response.status === 204) {
+      return undefined as T
+    }
+
     const data = await response.json()
 
     if (!response.ok) {

@@ -15,7 +15,7 @@ from services.github import github_service
 from services.gitlab import get_gitlab_service
 from services.parser import skill_parser, SkillMetadata
 from schemas.skill import SkillMetadata as SchemaSkillMetadata
-from core import logger, NotFoundError, ExternalServiceError
+from core import logger, NotFoundError, ExternalServiceError, encryption
 
 
 class SkillScanner:
@@ -158,12 +158,26 @@ class SkillScanner:
     async def _download_repo(self, repo: Repository, temp_dir: Path | None = None) -> Path:
         """下载仓库到临时目录"""
         try:
+            # 解密 access_token
+            decrypted_token = None
+            if repo.access_token:
+                try:
+                    decrypted_token = encryption.decrypt(repo.access_token)
+                    logger.info(f"Successfully decrypted access token for {repo.full_name}")
+                except Exception as e:
+                    logger.error(f"Failed to decrypt access token for {repo.full_name}: {e}")
+                    logger.error("This usually means the ENCRYPTION_KEY has changed. Please re-enter the access token.")
+                    raise ExternalServiceError(
+                        repo.type.value,
+                        f"Access token decryption failed. The ENCRYPTION_KEY may have changed. Please re-enter the access token for this repository."
+                    )
+
             if repo.type == RepositoryType.GITHUB:
                 return await github_service.download_repo(
                     owner=repo.owner,
                     name=repo.name,
                     branch=repo.branch,
-                    access_token=repo.access_token,
+                    access_token=decrypted_token,
                     temp_dir=temp_dir
                 )
             else:  # GITLAB
@@ -172,9 +186,11 @@ class SkillScanner:
                     owner=repo.owner,
                     name=repo.name,
                     branch=repo.branch,
-                    access_token=repo.access_token,
+                    access_token=decrypted_token,
                     temp_dir=temp_dir
                 )
+        except ExternalServiceError:
+            raise
         except Exception as e:
             logger.error(f"Failed to download repository {repo.full_name}: {e}")
             raise ExternalServiceError(repo.type.value, str(e))

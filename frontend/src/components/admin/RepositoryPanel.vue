@@ -79,7 +79,7 @@
               <span class="keyword">gitlab_url</span>
               <span class="punctuation">:</span>
             </label>
-            <input v-model="form.gitlab_url" class="input" placeholder="https://gitlab.example.com" />
+            <input v-model="form.gitlab_url" class="input" placeholder="https://gitlab.example.com or https://gitlab.example.com/owner/repo" />
           </div>
           <div class="form-row">
             <label class="label">

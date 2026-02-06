@@ -100,17 +100,31 @@ onMounted(async () => {
     // 加载分类数据
     const categoryData = await api.get('/categories')
     categories.value = categoryData
+
+    // 获取未分类Skill数据
+    const uncategorizedSkills = await api.get('/skills/sync/pending')
     
+    // 如果存在未分类Skill，创建"未分类"分类项
+    if (uncategorizedSkills.length > 0) {
+      const uncategorizedCategory = {
+        id: -1,
+        name: '未分类',
+        slug: 'uncategorized',
+        skill_count: uncategorizedSkills.length,
+        children: []
+      };
+      categories.value.unshift(uncategorizedCategory);
+    }
+
     // 获取统计信息
-    const [skillsRes, reposRes] = await Promise.all([
-      api.get('/skills?page_size=1'),
-      api.get('/repositories')
+    const [skillsRes] = await Promise.all([
+      api.get('/skills?page_size=1')
     ])
-    
+
     stats.value = {
       total_skills: skillsRes.total || 0,
-      total_categories: categoryData.length,
-      total_repositories: Array.isArray(reposRes) ? reposRes.length : 0
+      total_categories: categoryData.length + (uncategorizedSkills.length > 0 ? 1 : 0),
+      total_repositories: 0  // 前台不显示仓库数量
     }
   } catch (e) {
     console.error('Failed to load data:', e)

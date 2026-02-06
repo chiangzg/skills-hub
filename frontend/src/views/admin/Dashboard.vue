@@ -68,6 +68,20 @@
                 <span class="tab-count">{{ userCount }}</span>
               </div>
             </button>
+
+            <button
+              v-if="isAdmin"
+              :class="['tab-button', { active: activeTab === 'skill-categories' }]"
+              @click="activeTab = 'skill-categories'"
+            >
+              <div class="tab-icon-wrapper">
+                <span class="tab-icon">⚙️</span>
+              </div>
+              <div class="tab-info">
+                <span class="tab-label">技能分类管理</span>
+                <span class="tab-count">{{ skillCategoryCount }}</span>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -83,6 +97,10 @@
           
           <div v-show="activeTab === 'users'" class="content-section">
             <UserPanel v-if="isAdmin" @data-change="handleUserChange" />
+          </div>
+          
+          <div v-show="activeTab === 'skill-categories'" class="content-section">
+            <SkillCategoryManager />
           </div>
         </div>
       </div>
@@ -115,6 +133,7 @@ import { useRouter } from 'vue-router'
 import RepositoryPanel from '../../components/admin/RepositoryPanel.vue'
 import CategoryPanel from '../../components/admin/CategoryPanel.vue'
 import UserPanel from '../../components/admin/UserPanel.vue'
+import SkillCategoryManager from '../../components/admin/SkillCategoryManager.vue'
 import { api } from '../../api'
 
 const router = useRouter()
@@ -127,6 +146,7 @@ const isAdmin = computed(() => userRole.value === 'admin')
 const repoCount = ref(0)
 const categoryCount = ref(0)
 const userCount = ref(0)
+const skillCategoryCount = ref(0)
 const isSyncing = ref(false)
 
 onMounted(async () => {
@@ -136,15 +156,17 @@ onMounted(async () => {
 async function loadDataCounts() {
   try {
     // 并行加载统计数据
-    const [repos, categories, users] = await Promise.all([
-      api.get('/repositories').catch(() => []),
-      api.get('/categories').catch(() => []),
-      isAdmin.value ? api.get('/admin/users').catch(() => []) : Promise.resolve([])
+    const [repos, categories, users, skills] = await Promise.all([
+      api.get('/admin/repositories').catch(() => []),
+      api.get('/admin/categories').catch(() => []),
+      isAdmin.value ? api.get('/admin/users').catch(() => []) : Promise.resolve([]),
+      api.get('/skills?page_size=1').catch(() => { total: 0 })
     ])
-    
+
     repoCount.value = Array.isArray(repos) ? repos.length : 0
     categoryCount.value = Array.isArray(categories) ? categories.length : 0
     userCount.value = Array.isArray(users) ? users.length : 0
+    skillCategoryCount.value = skills.total || 0
   } catch (e) {
     console.error('Failed to load data counts:', e)
   }
