@@ -192,13 +192,14 @@ function getCategoryLevel(cat: any): number {
 // 过滤技能
 const filteredSkills = computed(() => {
   if (!skillSearch.value) return skills.value
-  
+
   const searchLower = skillSearch.value.toLowerCase()
-  return skills.value.filter(skill => 
-    skill.name.toLowerCase().includes(searchLower) || 
-    (skill.description && skill.description.toLowerCase().includes(searchLower)) ||
-    (skill.repository && skill.repository.toLowerCase().includes(searchLower))
-  )
+  return skills.value.filter(skill => {
+    const nameMatch = skill.name?.toLowerCase().includes(searchLower)
+    const descMatch = skill.description?.toLowerCase().includes(searchLower)
+    const repoMatch = skill.repository?.name?.toLowerCase().includes(searchLower)
+    return nameMatch || descMatch || repoMatch
+  })
 })
 
 // 清除搜索
