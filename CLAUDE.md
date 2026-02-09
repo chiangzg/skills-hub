@@ -121,3 +121,4 @@ docker-compose down
 - GitLab webhook URL format: `/webhooks/gitlab/{repo_id}` with shared secret
 - SKILL.md format: YAML front matter (`---\nname: ...\n---`) followed by content
 - MySQL schema initialization uses `schema.sql` in docker volume mount
+- Please place all generated documents in the `./docs directory`, and organize the internal directory structure according to a reasonable layout.
