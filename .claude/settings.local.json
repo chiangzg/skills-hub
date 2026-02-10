@@ -14,11 +14,9 @@
       "Bash(docker logs:*)",
       "Bash(TOKEN*)",
       "Bash(docker exec:*)",
-      "Bash(*)",
-      "Bash(__NEW_LINE_f8249ea7b024ef6c__ echo \"2. 编程分类下的技能列表 \\(前5个\\):\")",
-      "Bash(__NEW_LINE_858bad9d506d1993__ echo \"3. 分类树 \\(包含 skill_count\\):\")",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "mcp__chrome-mcp-server__*"
     ]
   }
 }
