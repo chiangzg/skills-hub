@@ -59,7 +59,7 @@
           </button>
         </form>
 
-        <div class="login-footer">
+        <div v-if="isDevelopment" class="login-footer">
           <div class="credentials-hint">
             <p class="hint-title">默认账户信息</p>
             <div class="credential-item">
@@ -96,9 +96,13 @@
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { authApi, api } from '../api'
+import type { LoginResponse } from '../types/api'
 
 const router = useRouter()
 const route = useRoute()
+
+// 仅在开发环境显示默认凭据
+const isDevelopment = import.meta.env.DEV
 
 const username = ref('')
 const password = ref('')
@@ -115,7 +119,7 @@ async function handleLogin() {
   error.value = ''
 
   try {
-    const response: any = await authApi.login(username.value, password.value)
+    const response = await authApi.login(username.value, password.value) as LoginResponse
 
     // 保存 token 和用户信息
     api.setToken(response.access_token)
@@ -125,8 +129,8 @@ async function handleLogin() {
     // 跳转到原来的页面或首页
     const redirect = route.query.redirect as string || '/'
     router.push(redirect)
-  } catch (e: any) {
-    error.value = e.message || 'Login failed'
+  } catch (e: unknown) {
+    error.value = (e as Error).message || 'Login failed'
   } finally {
     loading.value = false
   }

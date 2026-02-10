@@ -14,7 +14,7 @@
       <div class="hero-inner">
         <p class="hero-badge">Discover · Rank · Reuse</p>
         <h1 class="hero-title">Skills Hub</h1>
-        <p class="hero-subtitle">东福Skill生态系统。</p>
+        <p class="hero-subtitle">更多技能, 更多可能。</p>
         <div class="hero-actions">
           <button class="primary-btn" @click="scrollToBoard">浏览技能榜</button>
           <button class="ghost-btn" @click="$router.push('/categories')">进入分类页</button>

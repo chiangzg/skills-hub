@@ -1,17 +1,31 @@
 /**
  * API 客户端
  */
+import type {
+  ApiResponse,
+  User,
+  LoginResponse,
+  ChangePasswordRequest,
+  Repository,
+  RepositoryCreate,
+  RepositoryUpdate,
+  SyncResponse,
+  WebhookConfig,
+  Category,
+  CategoryTree,
+  AssignCategoriesRequest,
+  CategoryCreate,
+  CategoryUpdate,
+  Skill,
+  SkillListParams,
+  WebhookLog,
+  SyncStatus,
+  CreateUserRequest,
+  UpdateUserRequest,
+  ResetPasswordRequest
+} from '../types/api'
 
 const API_BASE = '/api'
-
-interface ApiResponse<T> {
-  error?: {
-    code: string
-    message: string
-    details?: any
-    timestamp: string
-  }
-}
 
 class ApiClient {
   private baseUrl: string
@@ -69,14 +83,14 @@ class ApiClient {
     return this.request<T>(endpoint, { method: 'GET' })
   }
 
-  async post<T>(endpoint: string, body?: any): Promise<T> {
+  async post<T>(endpoint: string, body?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: body ? JSON.stringify(body) : undefined
     })
   }
 
-  async put<T>(endpoint: string, body?: any): Promise<T> {
+  async put<T>(endpoint: string, body?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
       body: body ? JSON.stringify(body) : undefined
@@ -92,84 +106,76 @@ export const api = new ApiClient()
 
 // 认证 API
 export const authApi = {
-  async login(username: string, password: string) {
-    return api.post('/auth/login', { username, password })
+  async login(username: string, password: string): Promise<LoginResponse> {
+    return api.post<LoginResponse>('/auth/login', { username, password })
   },
-  async getMe() {
-    return api.get('/auth/me')
+  async getMe(): Promise<User> {
+    return api.get<User>('/auth/me')
   },
-  async changePassword(oldPassword: string, newPassword: string) {
-    return api.post('/auth/change-password', {
+  async changePassword(oldPassword: string, newPassword: string): Promise<void> {
+    return api.post<void>('/auth/change-password', {
       old_password: oldPassword,
       new_password: newPassword
-    })
+    } as ChangePasswordRequest)
   }
 }
 
 // 仓库 API
 export const repositoryApi = {
-  async list() {
-    return api.get('/admin/repositories')
+  async list(): Promise<Repository[]> {
+    return api.get<Repository[]>('/admin/repositories')
   },
-  async create(data: any) {
-    return api.post('/admin/repositories', data)
+  async create(data: RepositoryCreate): Promise<Repository> {
+    return api.post<Repository>('/admin/repositories', data)
   },
-  async get(id: number) {
-    return api.get(`/admin/repositories/${id}`)
+  async get(id: number): Promise<Repository> {
+    return api.get<Repository>(`/admin/repositories/${id}`)
   },
-  async update(id: number, data: any) {
-    return api.put(`/admin/repositories/${id}`, data)
+  async update(id: number, data: RepositoryUpdate): Promise<Repository> {
+    return api.put<Repository>(`/admin/repositories/${id}`, data)
   },
-  async delete(id: number) {
-    return api.delete(`/admin/repositories/${id}`)
+  async delete(id: number): Promise<void> {
+    return api.delete<void>(`/admin/repositories/${id}`)
   },
-  async sync(id: number) {
-    return api.post(`/admin/repositories/${id}/sync`)
+  async sync(id: number): Promise<SyncResponse> {
+    return api.post<SyncResponse>(`/admin/repositories/${id}/sync`)
   },
-  async configureWebhook(id: number, enabled: boolean, secret?: string) {
-    return api.post(`/admin/repositories/${id}/webhook`, { enabled, secret })
+  async configureWebhook(id: number, enabled: boolean, secret?: string): Promise<{ message: string; enabled: boolean }> {
+    return api.post<{ message: string; enabled: boolean }>(`/admin/repositories/${id}/webhook`, { enabled, secret } as WebhookConfig)
   }
 }
 
 // 分类 API
 export const categoryApi = {
-  async getTree() {
-    return api.get('/admin/categories/tree')
+  async getTree(): Promise<CategoryTree[]> {
+    return api.get<CategoryTree[]>('/admin/categories/tree')
   },
-  async list() {
-    return api.get('/admin/categories')
+  async list(): Promise<Category[]> {
+    return api.get<Category[]>('/admin/categories')
   },
-  async create(data: any) {
-    return api.post('/admin/categories', data)
+  async create(data: CategoryCreate): Promise<Category> {
+    return api.post<Category>('/admin/categories', data)
   },
-  async update(id: number, data: any) {
-    return api.put(`/admin/categories/${id}`, data)
+  async update(id: number, data: CategoryUpdate): Promise<Category> {
+    return api.put<Category>(`/admin/categories/${id}`, data)
   },
-  async delete(id: number) {
-    return api.delete(`/admin/categories/${id}`)
+  async delete(id: number): Promise<void> {
+    return api.delete<void>(`/admin/categories/${id}`)
   },
-  async assignSkill(skillId: number, categoryIds: number[]) {
-    return api.post(`/admin/categories/skills/${skillId}/categories`, { category_ids: categoryIds })
+  async assignSkill(skillId: number, categoryIds: number[]): Promise<void> {
+    return api.post<void>(`/admin/categories/skills/${skillId}/categories`, { category_ids: categoryIds } as AssignCategoriesRequest)
   },
-  async addSkill(categoryId: number, skillId: number) {
-    return api.post(`/admin/categories/${categoryId}/skills/${skillId}`)
+  async addSkill(categoryId: number, skillId: number): Promise<void> {
+    return api.post<void>(`/admin/categories/${categoryId}/skills/${skillId}`)
   },
-  async removeSkill(categoryId: number, skillId: number) {
-    return api.delete(`/admin/categories/${categoryId}/skills/${skillId}`)
+  async removeSkill(categoryId: number, skillId: number): Promise<void> {
+    return api.delete<void>(`/admin/categories/${categoryId}/skills/${skillId}`)
   }
 }
 
 // Skill API
 export const skillApi = {
-  async list(params: {
-    keyword?: string
-    category_id?: number
-    repository_id?: number
-    page?: number
-    page_size?: number
-    sort_by?: string
-    sort_order?: string
-  } = {}) {
+  async list(params: SkillListParams = {}): Promise<Skill[]> {
     const searchParams = new URLSearchParams()
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined) {
@@ -177,52 +183,52 @@ export const skillApi = {
       }
     })
     const query = searchParams.toString()
-    return api.get(`/skills${query ? `?${query}` : ''}`)
+    return api.get<Skill[]>(`/skills${query ? `?${query}` : ''}`)
   },
-  async get(id: number) {
-    return api.get(`/skills/${id}`)
+  async get(id: number): Promise<Skill> {
+    return api.get<Skill>(`/skills/${id}`)
   },
-  async getPending() {
-    return api.get('/skills/sync/pending')
+  async getPending(): Promise<Skill[]> {
+    return api.get<Skill[]>('/skills/sync/pending')
   }
 }
 
 // 用户管理 API
 export const userApi = {
-  async list() {
-    return api.get('/admin/users')
+  async list(): Promise<User[]> {
+    return api.get<User[]>('/admin/users')
   },
-  async create(data: any) {
-    return api.post('/admin/users', data)
+  async create(data: CreateUserRequest): Promise<User> {
+    return api.post<User>('/admin/users', data)
   },
-  async update(id: number, data: any) {
-    return api.put(`/admin/users/${id}`, data)
+  async update(id: number, data: UpdateUserRequest): Promise<User> {
+    return api.put<User>(`/admin/users/${id}`, data)
   },
-  async delete(id: number) {
-    return api.delete(`/admin/users/${id}`)
+  async delete(id: number): Promise<void> {
+    return api.delete<void>(`/admin/users/${id}`)
   },
-  async resetPassword(id: number, newPassword: string) {
-    return api.post(`/admin/users/${id}/reset-password`, { new_password: newPassword })
+  async resetPassword(id: number, newPassword: string): Promise<void> {
+    return api.post<void>(`/admin/users/${id}/reset-password`, { new_password: newPassword } as ResetPasswordRequest)
   }
 }
 
 // 同步 API
 export const syncApi = {
-  async syncRepo(id: number) {
-    return api.post(`/admin/sync/${id}`)
+  async syncRepo(id: number): Promise<SyncResponse> {
+    return api.post<SyncResponse>(`/admin/sync/${id}`)
   },
-  async syncAll() {
-    return api.post('/admin/sync/all')
+  async syncAll(): Promise<SyncResponse> {
+    return api.post<SyncResponse>('/admin/sync/all')
   },
-  async getStatus() {
-    return api.get('/admin/sync/status')
+  async getStatus(): Promise<SyncStatus> {
+    return api.get<SyncStatus>('/admin/sync/status')
   }
 }
 
 // Webhook API
 export const webhookApi = {
-  async getLogs(repoId?: number) {
+  async getLogs(repoId?: number): Promise<WebhookLog[]> {
     const query = repoId ? `?repository_id=${repoId}` : ''
-    return api.get(`/webhooks/logs${query}`)
+    return api.get<WebhookLog[]>(`/webhooks/logs${query}`)
   }
 }

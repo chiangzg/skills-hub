@@ -2,6 +2,7 @@
 Skills Platform - FastAPI 主入口
 """
 from contextlib import asynccontextmanager
+import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -53,12 +54,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS 中间件
+# CORS 中间件 - 从环境变量读取允许的来源
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 生产环境应限制具体域名
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 

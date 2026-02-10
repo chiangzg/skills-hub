@@ -13,11 +13,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from models.user import User
 from core import logger
+import os
 
 # JWT 配置
-SECRET_KEY = "your-secret-key-change-in-production"  # 生产环境从环境变量读取
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("JWT_SECRET_KEY environment variable must be set")
+
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24小时
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 2  # 2小时
 
 security = HTTPBearer(auto_error=False)
 

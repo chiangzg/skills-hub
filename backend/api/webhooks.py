@@ -3,11 +3,14 @@ Webhook API
 """
 from fastapi import APIRouter, Request, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+import hmac
 
 from database import get_db
-from models import Repository
+from models import Repository, User
 from services.webhook import get_webhook_service
+from middleware.auth import get_current_user
 from core import logger
+from core.security import encryption
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
@@ -36,9 +39,15 @@ async def gitlab_webhook(
 
     # 验证签名
     signature = request.headers.get('X-Gitlab-Token')
-    if repo.webhook_secret and signature != repo.webhook_secret:
-        logger.warning(f"Invalid webhook signature for repository: {repo_id}")
-        raise HTTPException(status_code=403, detail="Invalid signature")
+    if repo.webhook_secret:
+        decrypted_secret = encryption.decrypt(repo.webhook_secret)
+        if not hmac.compare_digest(signature or '', decrypted_secret):
+            logger.warning(f"Invalid webhook signature for repository: {repo_id}")
+            raise HTTPException(status_code=403, detail="Invalid signature")
+    else:
+        # 没有配置密钥时拒绝请求
+        logger.warning(f"Webhook secret not configured for repository: {repo_id}")
+        raise HTTPException(status_code=403, detail="Webhook secret not configured")
 
     # 获取事件类型
     event_type = request.headers.get('X-Gitlab-Event')
@@ -68,9 +77,10 @@ async def gitlab_webhook(
 async def get_webhook_logs(
     repo_id: int | None = None,
     limit: int = 100,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取 Webhook 日志"""
+    """获取 Webhook 日志（需要认证）"""
     webhook_service = get_webhook_service(db)
     logs = await webhook_service.get_webhook_logs(repo_id, limit)
 

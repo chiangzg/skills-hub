@@ -39,6 +39,7 @@ class RepositoryUpdate(BaseModel):
     webhook_secret: str | None = Field(default=None, max_length=255)
     webhook_enabled: bool | None = None
     enabled: bool | None = None
+    gitlab_url: str | None = Field(None, max_length=500)
 
 
 class RepositoryResponse(RepositoryBase):

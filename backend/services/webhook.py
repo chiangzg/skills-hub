@@ -6,6 +6,7 @@ from datetime import datetime
 from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+import hmac
 
 from models import Repository, Webhook, WebhookStatus
 from services.scanner import SkillScanner
@@ -25,8 +26,9 @@ class WebhookService:
         GitLab 使用简单的 token 验证，通过 X-Gitlab-Token header 传递
         """
         if not secret:
-            return True  # 如果没配置密钥，跳过验证
-        return signature == secret
+            logger.warning("Webhook secret not configured - rejecting request")
+            return False  # 拒绝无密钥的请求
+        return hmac.compare_digest(signature, secret)
 
     async def handle_gitlab_push(
         self,

@@ -23,7 +23,7 @@
           <span class="comment">// {{ repo.skill_count }} skills</span>
         </div>
         <div class="repo-actions">
-          <button @click="syncRepo(repo)" :disabled="repo.syncing" class="action-btn">
+          <button @click="openSyncConfirm(repo)" :disabled="repo.syncing" class="action-btn">
             <span class="keyword">$sync</span>
           </button>
           <button @click="editRepo(repo)" class="action-btn">
@@ -100,6 +100,76 @@
         </form>
       </div>
     </div>
+
+    <!-- 同步确认对话框 -->
+    <div v-if="showSyncConfirm" class="dialog-overlay" @click.self="showSyncConfirm = false">
+      <div class="dialog dialog-small">
+        <div class="dialog-header">
+          <span class="prompt">$sync --confirm</span>
+        </div>
+        <div class="dialog-body">
+          <p>确定要同步仓库 <span class="string">{{ pendingSyncRepo?.owner }}/{{ pendingSyncRepo?.name }}</span> 吗？</p>
+        </div>
+        <div class="dialog-actions">
+          <button @click="showSyncConfirm = false" class="cancel-btn">
+            <span class="keyword">$cancel</span>
+          </button>
+          <button @click="confirmSync" class="submit-btn" :disabled="syncing">
+            <span class="keyword">$exec</span>
+            <span class="name">sync</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 编辑仓库对话框 -->
+    <div v-if="showEditDialog" class="dialog-overlay" @click.self="showEditDialog = false">
+      <div class="dialog">
+        <div class="dialog-header">
+          <span class="prompt">$edit {{ editingRepo?.owner }}/{{ editingRepo?.name }}</span>
+        </div>
+        <form @submit.prevent="saveEdit" class="dialog-form">
+          <div class="form-row">
+            <label class="label">
+              <span class="keyword">branch</span>
+              <span class="punctuation">:</span>
+            </label>
+            <input v-model="editForm.branch" class="input" required />
+          </div>
+          <div v-if="editingRepo?.type === 'GITLAB'" class="form-row">
+            <label class="label">
+              <span class="keyword">gitlab_url</span>
+              <span class="punctuation">:</span>
+            </label>
+            <input v-model="editForm.gitlab_url" class="input" />
+          </div>
+          <div class="form-row">
+            <label class="label">
+              <span class="keyword">access_token</span>
+              <span class="punctuation">:</span>
+            </label>
+            <input v-model="editForm.access_token" class="input" type="password" placeholder="留空则不修改" />
+          </div>
+          <div class="form-row">
+            <label class="label checkbox-label">
+              <span class="keyword">enabled</span>
+              <span class="punctuation">:</span>
+            </label>
+            <input v-model="editForm.enabled" type="checkbox" class="checkbox" />
+            <span class="checkbox-text">{{ editForm.enabled ? 'true' : 'false' }}</span>
+          </div>
+          <div class="dialog-actions">
+            <button type="button" @click="showEditDialog = false" class="cancel-btn">
+              <span class="keyword">$cancel</span>
+            </button>
+            <button type="submit" class="submit-btn" :disabled="saving">
+              <span class="keyword">$exec</span>
+              <span class="name">save</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -109,7 +179,13 @@ import { repositoryApi } from '../../api'
 
 const repositories = ref<any[]>([])
 const showAddDialog = ref(false)
+const showSyncConfirm = ref(false)
+const showEditDialog = ref(false)
 const loading = ref(false)
+const syncing = ref(false)
+const saving = ref(false)
+const pendingSyncRepo = ref<any>(null)
+const editingRepo = ref<any>(null)
 
 const form = ref({
   type: 'github',
@@ -118,6 +194,13 @@ const form = ref({
   branch: 'main',
   gitlab_url: '',
   access_token: ''
+})
+
+const editForm = ref({
+  branch: '',
+  gitlab_url: '',
+  access_token: '',
+  enabled: true
 })
 
 onMounted(async () => {
@@ -160,22 +243,66 @@ async function addRepo() {
   }
 }
 
-async function syncRepo(repo: any) {
-  repo.syncing = true
+function openSyncConfirm(repo: any) {
+  pendingSyncRepo.value = repo
+  showSyncConfirm.value = true
+}
+
+async function confirmSync() {
+  if (!pendingSyncRepo.value) return
+
+  syncing.value = true
   try {
-    const result = await repositoryApi.sync(repo.id)
+    const result = await repositoryApi.sync(pendingSyncRepo.value.id)
     alert(`同步完成: ${result.message}`)
     await loadRepositories()
   } catch (e: any) {
     alert(e.message || '同步失败')
   } finally {
-    repo.syncing = false
+    syncing.value = false
+    showSyncConfirm.value = false
+    pendingSyncRepo.value = null
   }
 }
 
 function editRepo(repo: any) {
-  // TODO: 实现编辑功能
-  alert('编辑功能待实现')
+  editingRepo.value = repo
+  editForm.value = {
+    branch: repo.branch,
+    gitlab_url: repo.gitlab_url || '',
+    access_token: '',
+    enabled: repo.enabled
+  }
+  showEditDialog.value = true
+}
+
+async function saveEdit() {
+  if (!editingRepo.value) return
+
+  saving.value = true
+  try {
+    const updateData: any = {
+      branch: editForm.value.branch,
+      enabled: editForm.value.enabled
+    }
+
+    if (editForm.value.gitlab_url && editingRepo.value.type === 'GITLAB') {
+      updateData.gitlab_url = editForm.value.gitlab_url
+    }
+
+    if (editForm.value.access_token) {
+      updateData.access_token = editForm.value.access_token
+    }
+
+    await repositoryApi.update(editingRepo.value.id, updateData)
+    showEditDialog.value = false
+    editingRepo.value = null
+    await loadRepositories()
+  } catch (e: any) {
+    alert(e.message || '保存失败')
+  } finally {
+    saving.value = false
+  }
 }
 
 async function deleteRepo(repo: any) {
@@ -357,5 +484,35 @@ async function deleteRepo(repo: any) {
 .submit-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* 对话框内容 */
+.dialog-body {
+  margin-bottom: 1.5rem;
+}
+
+.dialog-body p {
+  color: #c0caf5;
+}
+
+.dialog-small {
+  min-width: 320px;
+}
+
+/* 复选框样式 */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox {
+  width: auto;
+  flex: 0;
+  margin: 0 0.5rem 0 0;
+  cursor: pointer;
+}
+
+.checkbox-text {
+  color: #9ece6a;
 }
 </style>

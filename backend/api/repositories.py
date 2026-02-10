@@ -17,7 +17,7 @@ from schemas.repository import (
     WebhookConfig,
     SyncResponse
 )
-from middleware.auth import get_current_user
+from middleware.auth import get_current_user, require_admin
 from services.scanner import SkillScanner
 from services.gitlab import get_gitlab_service
 from core import NotFoundError, ConflictError, encryption
@@ -209,10 +209,18 @@ async def update_repository(
         repo.branch = repo_data.branch
     if repo_data.enabled is not None:
         repo.enabled = repo_data.enabled
+    if repo_data.gitlab_url is not None:
+        repo.gitlab_url = repo_data.gitlab_url
 
     # 加密新的 token
     if repo_data.access_token is not None:
         repo.access_token = encryption.encrypt(repo_data.access_token) if repo_data.access_token else None
+
+    # 更新 webhook 配置
+    if repo_data.webhook_enabled is not None:
+        repo.webhook_enabled = repo_data.webhook_enabled
+    if repo_data.webhook_secret is not None:
+        repo.webhook_secret = encryption.encrypt(repo_data.webhook_secret) if repo_data.webhook_secret else None
 
     await db.commit()
     await db.refresh(repo)
@@ -241,10 +249,10 @@ async def delete_repository(
 async def sync_repository(
     repo_id: int,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """手动同步仓库"""
+    """手动同步仓库（需要管理员权限）"""
     repo = await db.get(Repository, repo_id)
     if not repo:
         raise NotFoundError("Repository", repo_id)

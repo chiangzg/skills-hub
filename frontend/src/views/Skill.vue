@@ -165,6 +165,8 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '../api'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 
 const route = useRoute()
 const skill = ref<any>(null)
@@ -190,16 +192,14 @@ function formatDate(dateString: string) {
 }
 
 function renderMarkdown(content: string) {
-  // 简单的markdown渲染（实际项目中可以使用markdown-it等库）
-  return content
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/`(.*?)`/g, '<code>$1</code>')
-    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-    .replace(/^\- (.*$)/gim, '<li>$1</li>')
-    .replace(/\n/g, '<br>')
+  // 使用 marked 将 markdown 转换为 HTML
+  const rawHtml = marked(content)
+
+  // 使用 DOMPurify 清理 HTML，防止 XSS 攻击
+  return DOMPurify.sanitize(rawHtml, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'blockquote', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
+    ALLOWED_ATTR: ['href', 'title', 'class']
+  })
 }
 </script>
 
