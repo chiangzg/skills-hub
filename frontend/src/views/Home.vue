@@ -1,415 +1,886 @@
 <template>
-  <div class="home-container">
-    <!-- 头部区域 -->
-    <header class="hero-section">
-      <div class="hero-content">
-        <div class="logo-area">
-          <div class="logo-symbol">{ }</div>
-          <h1 class="platform-title">技能中心</h1>
-        </div>
-        <p class="platform-subtitle">发现 • 组织 • 分享内部技能</p>
-        
-        <div class="navigation-grid">
-          <div class="nav-card" @click="$router.push('/categories')">
-            <div class="card-icon">
-              <span class="icon-symbol">📂</span>
-            </div>
-            <h3>按分类浏览</h3>
-            <p>探索按功能领域和专业领域组织的技能</p>
-          </div>
-
-          <div class="nav-card" @click="$router.push('/admin')">
-            <div class="card-icon">
-              <span class="icon-symbol">⚙️</span>
-            </div>
-            <h3>管理系统</h3>
-            <p>管理仓库、分类和用户访问权限（需要登录）</p>
-          </div>
-        </div>
+  <div class="home-page">
+    <header class="top-bar">
+      <div class="top-inner">
+        <p class="top-note">Skills Hub · 内部技能生态</p>
+        <nav class="top-links">
+          <button class="link-btn" @click="$router.push('/categories')">分类浏览</button>
+          <button class="link-btn" @click="$router.push('/admin')">管理后台</button>
+        </nav>
       </div>
     </header>
 
-    <!-- 统计信息区域 -->
-    <section class="stats-section" v-if="stats.total_skills > 0">
-      <div class="stats-container">
-        <div class="stat-item">
-          <div class="stat-number">{{ stats.total_skills }}</div>
-          <div class="stat-label">总技能数</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-number">{{ stats.total_categories }}</div>
-          <div class="stat-label">分类数</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-number">{{ stats.total_repositories }}</div>
-          <div class="stat-label">仓库数</div>
+    <section class="hero">
+      <div class="hero-inner">
+        <p class="hero-badge">Discover · Rank · Reuse</p>
+        <h1 class="hero-title">Skills Hub</h1>
+        <p class="hero-subtitle">像 skills.sh 一样高密度浏览技能，并在首页直接按分类筛选。</p>
+        <div class="hero-actions">
+          <button class="primary-btn" @click="scrollToBoard">浏览技能榜</button>
+          <button class="ghost-btn" @click="$router.push('/categories')">进入分类页</button>
         </div>
       </div>
     </section>
 
-    <!-- 热门分类展示 -->
-    <section class="categories-section" v-if="categories.length > 0">
-      <div class="section-header">
-        <h2>热门分类</h2>
-        <div class="section-divider"></div>
-      </div>
-      
-      <div class="categories-grid">
-        <div
-          v-for="cat in categories.slice(0, 8)"
-          :key="cat.id"
-          class="category-card"
-          @click="$router.push(`/categories?slug=${cat.slug}`)"
-        >
-          <div class="category-icon">
-            <span>{{ cat.slug.charAt(0).toUpperCase() }}</span>
-          </div>
-          <div class="category-content">
-            <h3 class="category-name">{{ cat.name }}</h3>
-            <p class="category-count">{{ cat.skill_count || 0 }} 个技能</p>
-          </div>
+    <section class="board" ref="boardRef">
+      <div class="board-controls">
+        <div class="search-wrap">
+          <input
+            v-model="searchInput"
+            class="search-input"
+            type="text"
+            placeholder="搜索技能名称或描述..."
+          />
+        </div>
+
+        <div class="tab-group">
+          <button
+            v-for="tab in rankTabs"
+            :key="tab.value"
+            class="tab-btn"
+            :class="{ active: activeTab === tab.value }"
+            @click="setTab(tab.value)"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+
+        <div class="summary">
+          <span>命中 {{ total }} 个技能</span>
+          <span v-if="selectedCategory">分类：{{ selectedCategory.name }}</span>
+          <span v-if="searchKeyword">关键词：{{ searchKeyword }}</span>
         </div>
       </div>
-    </section>
 
-    <!-- 底部CTA -->
-    <footer class="cta-section">
-      <div class="cta-content">
-        <p>准备好发现精彩技能了吗？</p>
-        <button class="cta-button" @click="$router.push('/categories')">
-          探索分类
-        </button>
+      <div class="board-layout" v-if="!initialLoading">
+        <aside class="category-sidebar" :class="{ open: mobileFilterOpen }">
+          <div class="sidebar-head">
+            <h2>分类筛选</h2>
+            <button class="clear-btn" @click="clearCategory">清空</button>
+          </div>
+
+          <button
+            class="category-item root"
+            :class="{ active: selectedCategorySlug === 'all' }"
+            @click="selectCategory('all')"
+          >
+            <span>全部分类</span>
+          </button>
+
+          <div v-for="root in categories" :key="root.id" class="category-block">
+            <div class="category-item root" :class="{ active: selectedCategorySlug === root.slug }">
+              <button class="name-btn" @click="selectCategory(root.slug)">
+                {{ root.name }}
+              </button>
+              <div class="right-actions">
+                <span class="count">{{ root.skill_count || 0 }}</span>
+                <button
+                  v-if="root.children.length > 0"
+                  class="expand-btn"
+                  @click="toggleRoot(root.id)"
+                >
+                  {{ expandedRootIds.has(root.id) ? '−' : '+' }}
+                </button>
+              </div>
+            </div>
+
+            <div v-if="root.children.length > 0 && expandedRootIds.has(root.id)" class="children-list">
+              <button
+                v-for="child in root.children"
+                :key="child.id"
+                class="category-item child"
+                :class="{ active: selectedCategorySlug === child.slug }"
+                @click="selectCategory(child.slug)"
+              >
+                <span>{{ child.name }}</span>
+                <span class="count">{{ child.skill_count || 0 }}</span>
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <main class="rank-main">
+          <div class="mobile-filter-row">
+            <button class="mobile-filter-btn" @click="mobileFilterOpen = !mobileFilterOpen">
+              {{ mobileFilterOpen ? '收起分类' : '展开分类' }}
+            </button>
+          </div>
+
+          <div v-if="loadingSkills" class="state-card">加载技能榜中...</div>
+          <div v-else-if="loadError" class="state-card error">{{ loadError }}</div>
+          <div v-else-if="skills.length === 0" class="state-card">暂无匹配技能</div>
+
+          <div v-else class="table-wrap">
+            <table class="rank-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Skill</th>
+                  <th>分类</th>
+                  <th>热度</th>
+                  <th>Stars</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(skill, index) in skills"
+                  :key="skill.id"
+                  class="rank-row"
+                  @click="goSkill(skill.id)"
+                >
+                  <td>{{ rankStart + index + 1 }}</td>
+                  <td>
+                    <div class="skill-cell">
+                      <p class="skill-name">{{ skill.name }}</p>
+                      <p class="skill-repo">{{ skill.repository?.full_name || '-' }}</p>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="chips">
+                      <span
+                        v-for="cat in (skill.categories || []).slice(0, 2)"
+                        :key="`${skill.id}-${cat.id}`"
+                        class="chip"
+                      >
+                        {{ cat.name }}
+                      </span>
+                      <span v-if="(skill.categories || []).length === 0" class="chip muted">未分类</span>
+                    </div>
+                  </td>
+                  <td>{{ skill.views || 0 }}</td>
+                  <td>{{ skill.stars || 0 }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-if="totalPages > 1" class="pager">
+            <button class="pager-btn" :disabled="currentPage <= 1" @click="changePage(currentPage - 1)">
+              上一页
+            </button>
+            <span>第 {{ currentPage }} / {{ totalPages }} 页</span>
+            <button
+              class="pager-btn"
+              :disabled="currentPage >= totalPages"
+              @click="changePage(currentPage + 1)"
+            >
+              下一页
+            </button>
+          </div>
+        </main>
       </div>
-    </footer>
+
+      <div v-else class="state-card">加载首页中...</div>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { api } from '../api'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { api, skillApi } from '../api'
 
-const categories = ref<any[]>([])
-const stats = ref({
-  total_skills: 0,
-  total_categories: 0,
-  total_repositories: 0
+type RankTab = 'all' | 'trending' | 'starred'
+
+interface CategoryItem {
+  id: number
+  parent_id: number | null
+  name: string
+  slug: string
+  sort_order: number
+  skill_count: number
+  children: CategoryItem[]
+}
+
+const route = useRoute()
+const router = useRouter()
+const boardRef = ref<HTMLElement | null>(null)
+
+const categories = ref<CategoryItem[]>([])
+const skills = ref<any[]>([])
+const selectedCategorySlug = ref('all')
+const activeTab = ref<RankTab>('all')
+const searchInput = ref('')
+const searchKeyword = ref('')
+const currentPage = ref(1)
+const pageSize = 20
+const total = ref(0)
+const totalPages = ref(1)
+
+const initialLoading = ref(true)
+const loadingSkills = ref(false)
+const loadError = ref('')
+const mobileFilterOpen = ref(false)
+const expandedRootIds = ref<Set<number>>(new Set())
+
+const rankTabs = [
+  { value: 'all', label: '全量榜' },
+  { value: 'trending', label: '近期活跃' },
+  { value: 'starred', label: '高星技能' }
+] as const
+
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+let syncingQuery = false
+const initialized = ref(false)
+
+const flatCategories = computed(() => {
+  const all: CategoryItem[] = []
+  for (const root of categories.value) {
+    all.push(root)
+    all.push(...root.children)
+  }
+  return all
 })
+
+const selectedCategory = computed(() => {
+  if (selectedCategorySlug.value === 'all') return null
+  return flatCategories.value.find((item) => item.slug === selectedCategorySlug.value) || null
+})
+
+const selectedCategoryId = computed(() => selectedCategory.value?.id)
+const rankStart = computed(() => (currentPage.value - 1) * pageSize)
 
 onMounted(async () => {
-  try {
-    // 加载分类数据
-    const categoryData = await api.get('/categories')
-    categories.value = categoryData
+  await loadCategories()
+  applyQueryToState(route.query)
+  await fetchSkills()
+  initialized.value = true
+  initialLoading.value = false
+})
 
-    // 获取未分类Skill数据
-    const uncategorizedSkills = await api.get('/skills/sync/pending')
-    
-    // 如果存在未分类Skill，创建"未分类"分类项
-    if (uncategorizedSkills.length > 0) {
-      const uncategorizedCategory = {
-        id: -1,
-        name: '未分类',
-        slug: 'uncategorized',
-        skill_count: uncategorizedSkills.length,
-        children: []
-      };
-      categories.value.unshift(uncategorizedCategory);
-    }
-
-    // 获取统计信息
-    const [skillsRes] = await Promise.all([
-      api.get('/skills?page_size=1')
-    ])
-
-    stats.value = {
-      total_skills: skillsRes.total || 0,
-      total_categories: categoryData.length + (uncategorizedSkills.length > 0 ? 1 : 0),
-      total_repositories: 0  // 前台不显示仓库数量
-    }
-  } catch (e) {
-    console.error('Failed to load data:', e)
+onBeforeUnmount(() => {
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+    searchDebounceTimer = null
   }
 })
+
+watch(searchInput, (value) => {
+  if (!initialized.value) return
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+  searchDebounceTimer = setTimeout(() => {
+    searchKeyword.value = value.trim()
+    currentPage.value = 1
+  }, 300)
+})
+
+watch([activeTab, selectedCategorySlug, searchKeyword, currentPage], async () => {
+  if (!initialized.value) return
+  await syncQueryFromState()
+  await fetchSkills()
+})
+
+watch(
+  () => route.query,
+  async (query) => {
+    if (!initialized.value || syncingQuery) return
+    const before = buildQueryFromState()
+    applyQueryToState(query)
+    const after = buildQueryFromState()
+    if (JSON.stringify(before) !== JSON.stringify(after)) {
+      await fetchSkills()
+    }
+  }
+)
+
+async function loadCategories() {
+  try {
+    const list = await api.get('/categories') as any[]
+    categories.value = buildCategoryTree(list)
+    expandedRootIds.value = new Set(categories.value.map((item) => item.id))
+  } catch {
+    categories.value = []
+  }
+}
+
+function buildCategoryTree(items: any[]): CategoryItem[] {
+  const map = new Map<number, CategoryItem>()
+
+  for (const raw of items) {
+    map.set(raw.id, {
+      id: raw.id,
+      parent_id: raw.parent_id,
+      name: raw.name,
+      slug: raw.slug,
+      sort_order: raw.sort_order || 0,
+      skill_count: raw.skill_count || 0,
+      children: []
+    })
+  }
+
+  const roots: CategoryItem[] = []
+  for (const node of map.values()) {
+    if (node.parent_id && map.has(node.parent_id)) {
+      map.get(node.parent_id)?.children.push(node)
+    } else {
+      roots.push(node)
+    }
+  }
+
+  const sortNodes = (nodes: CategoryItem[]) => {
+    nodes.sort((a, b) => a.sort_order - b.sort_order)
+    for (const node of nodes) {
+      if (node.children.length > 0) sortNodes(node.children)
+    }
+  }
+
+  sortNodes(roots)
+  return roots
+}
+
+function normalizeTab(value: unknown): RankTab {
+  return value === 'trending' || value === 'starred' ? value : 'all'
+}
+
+function normalizeCategorySlug(value: unknown): string {
+  if (typeof value !== 'string' || value.trim() === '') return 'all'
+  return flatCategories.value.some((item) => item.slug === value) ? value : 'all'
+}
+
+function normalizePage(value: unknown): number {
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || parsed < 1) return 1
+  return parsed
+}
+
+function applyQueryToState(query: Record<string, any>) {
+  const q = typeof query.q === 'string' ? query.q.trim() : ''
+  searchInput.value = q
+  searchKeyword.value = q
+  activeTab.value = normalizeTab(query.tab)
+  selectedCategorySlug.value = normalizeCategorySlug(query.category)
+  currentPage.value = normalizePage(query.page)
+}
+
+function buildQueryFromState() {
+  const query: Record<string, string> = {}
+  if (searchKeyword.value) query.q = searchKeyword.value
+  if (activeTab.value !== 'all') query.tab = activeTab.value
+  if (selectedCategorySlug.value !== 'all') query.category = selectedCategorySlug.value
+  if (currentPage.value > 1) query.page = String(currentPage.value)
+  return query
+}
+
+async function syncQueryFromState() {
+  const target = buildQueryFromState()
+  const current = {
+    q: typeof route.query.q === 'string' ? route.query.q : undefined,
+    tab: typeof route.query.tab === 'string' ? route.query.tab : undefined,
+    category: typeof route.query.category === 'string' ? route.query.category : undefined,
+    page: typeof route.query.page === 'string' ? route.query.page : undefined
+  }
+
+  if (JSON.stringify(target) === JSON.stringify(compactQuery(current))) return
+
+  syncingQuery = true
+  try {
+    await router.replace({ query: target })
+  } finally {
+    syncingQuery = false
+  }
+}
+
+function compactQuery(query: Record<string, string | undefined>) {
+  const compact: Record<string, string> = {}
+  for (const [key, value] of Object.entries(query)) {
+    if (value) compact[key] = value
+  }
+  return compact
+}
+
+function getSort(tab: RankTab) {
+  if (tab === 'trending') return { sort_by: 'updated_at', sort_order: 'desc' }
+  if (tab === 'starred') return { sort_by: 'stars', sort_order: 'desc' }
+  return { sort_by: 'views', sort_order: 'desc' }
+}
+
+async function fetchSkills() {
+  loadingSkills.value = true
+  loadError.value = ''
+
+  try {
+    const sort = getSort(activeTab.value)
+    const response = await skillApi.list({
+      keyword: searchKeyword.value || undefined,
+      category_id: selectedCategoryId.value,
+      page: currentPage.value,
+      page_size: pageSize,
+      sort_by: sort.sort_by,
+      sort_order: sort.sort_order
+    }) as any
+
+    skills.value = response.items || []
+    total.value = response.total || 0
+    totalPages.value = response.total_pages || 1
+
+    if (currentPage.value > totalPages.value && totalPages.value > 0) {
+      currentPage.value = totalPages.value
+    }
+  } catch {
+    skills.value = []
+    total.value = 0
+    totalPages.value = 1
+    loadError.value = '加载失败，请稍后重试。'
+  } finally {
+    loadingSkills.value = false
+  }
+}
+
+function setTab(tab: RankTab) {
+  if (activeTab.value === tab) return
+  activeTab.value = tab
+  currentPage.value = 1
+}
+
+function selectCategory(slug: string) {
+  if (selectedCategorySlug.value === slug) return
+  selectedCategorySlug.value = slug
+  currentPage.value = 1
+  mobileFilterOpen.value = false
+}
+
+function clearCategory() {
+  selectCategory('all')
+}
+
+function toggleRoot(id: number) {
+  if (expandedRootIds.value.has(id)) {
+    expandedRootIds.value.delete(id)
+  } else {
+    expandedRootIds.value.add(id)
+  }
+}
+
+function changePage(page: number) {
+  if (page < 1 || page > totalPages.value) return
+  currentPage.value = page
+}
+
+function goSkill(id: number) {
+  router.push(`/skills/${id}`)
+}
+
+function scrollToBoard() {
+  boardRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 </script>
 
 <style scoped>
-.home-container {
+.home-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  background: radial-gradient(circle at top, #202540 0%, var(--bg-primary) 45%);
+  color: var(--text-primary);
 }
 
-.hero-section {
-  padding: 4rem 2rem;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-}
-
-.hero-section::before {
-  content: '';
-  position: absolute;
+.top-bar {
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    radial-gradient(circle at 20% 30%, rgba(122, 162, 247, 0.15) 0%, transparent 40%),
-    radial-gradient(circle at 80% 70%, rgba(187, 154, 247, 0.15) 0%, transparent 40%);
-  pointer-events: none;
+  z-index: 20;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-light);
+  background: rgba(15, 15, 26, 0.85);
 }
 
-.hero-content {
-  max-width: 1200px;
+.top-inner {
+  max-width: 1280px;
   margin: 0 auto;
-  position: relative;
-  z-index: 1;
-}
-
-.logo-area {
-  margin-bottom: 2rem;
+  padding: 0.7rem 1.25rem;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 1rem;
 }
 
-.logo-symbol {
-  font-size: 3rem;
-  font-weight: bold;
-  color: var(--brand-blue);
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.1); opacity: 0.8; }
-}
-
-.platform-title {
-  font-size: 3.5rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, var(--brand-blue), var(--brand-purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0;
-}
-
-.platform-subtitle {
-  font-size: 1.25rem;
+.top-note {
+  font-size: 0.85rem;
   color: var(--text-secondary);
-  margin-bottom: 3rem;
-  font-weight: 300;
 }
 
-.navigation-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
-  margin-top: 3rem;
-}
-
-.nav-card {
-  background: rgba(26, 27, 38, 0.7);
-  border: 1px solid var(--border-light);
-  border-radius: 12px;
-  padding: 2rem;
-  cursor: pointer;
-  transition: all var(--transition-normal);
-  backdrop-filter: blur(10px);
-}
-
-.nav-card:hover {
-  transform: translateY(-5px);
-  border-color: var(--brand-blue);
-  box-shadow: var(--shadow-lg);
-}
-
-.card-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--brand-blue), var(--brand-purple));
+.top-links {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1.5rem;
+  gap: 0.5rem;
 }
 
-.icon-symbol {
-  font-size: 1.8rem;
-}
-
-.nav-card h3 {
-  color: var(--text-primary);
-  margin-bottom: 0.75rem;
-  font-size: 1.25rem;
-}
-
-.nav-card p {
-  color: var(--text-tertiary);
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.stats-section {
-  padding: 3rem 2rem;
-  background: rgba(21, 22, 34, 0.6);
-  backdrop-filter: blur(10px);
-}
-
-.stats-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 2rem;
-  text-align: center;
-}
-
-.stat-item {
-  padding: 1.5rem;
-  background: rgba(26, 27, 38, 0.5);
-  border-radius: 10px;
-  border: 1px solid var(--border-light);
-}
-
-.stat-number {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--brand-blue);
-  margin-bottom: 0.5rem;
-}
-
-.stat-label {
+.link-btn {
+  border: 1px solid var(--border-color);
+  background: transparent;
   color: var(--text-secondary);
-  font-size: 1rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  cursor: pointer;
 }
 
-.categories-section {
-  padding: 4rem 2rem;
-}
-
-.section-header {
-  text-align: center;
-  margin-bottom: 3rem;
-}
-
-.section-header h2 {
-  font-size: 2rem;
+.link-btn:hover {
   color: var(--text-primary);
+  border-color: var(--brand-cyan);
+}
+
+.hero {
+  padding: 4.5rem 1.25rem 3rem;
+}
+
+.hero-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.hero-badge {
+  width: fit-content;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(122, 162, 247, 0.16);
+  border: 1px solid rgba(122, 162, 247, 0.3);
+  color: var(--brand-cyan);
+  font-size: 0.8rem;
   margin-bottom: 1rem;
 }
 
-.section-divider {
-  width: 60px;
-  height: 3px;
-  background: linear-gradient(90deg, var(--brand-blue), var(--brand-purple));
-  margin: 0 auto;
-  border-radius: 2px;
+.hero-title {
+  font-size: clamp(2.1rem, 4vw, 3.6rem);
+  line-height: 1.1;
+  margin-bottom: 0.9rem;
 }
 
-.categories-grid {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
+.hero-subtitle {
+  max-width: 740px;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
 }
 
-.category-card {
-  background: rgba(26, 27, 38, 0.7);
-  border: 1px solid var(--border-light);
-  border-radius: 10px;
-  padding: 1.5rem;
-  cursor: pointer;
-  transition: all var(--transition-normal);
-  backdrop-filter: blur(10px);
+.hero-actions {
   display: flex;
-  align-items: center;
+  gap: 0.75rem;
+}
+
+.primary-btn,
+.ghost-btn {
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.primary-btn {
+  border: none;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-purple));
+}
+
+.ghost-btn {
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  background: transparent;
+}
+
+.board {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1.25rem 2rem;
+}
+
+.board-controls {
+  margin-bottom: 1rem;
+}
+
+.search-wrap {
+  margin-bottom: 0.75rem;
+}
+
+.search-input {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  background: rgba(26, 27, 38, 0.9);
+  color: var(--text-primary);
+  border-radius: 10px;
+  padding: 0.8rem 0.9rem;
+  font-size: 0.95rem;
+}
+
+.tab-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.tab-btn {
+  border: 1px solid var(--border-color);
+  background: rgba(26, 27, 38, 0.7);
+  color: var(--text-secondary);
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  border-color: var(--brand-cyan);
+  color: #fff;
+  background: rgba(122, 162, 247, 0.25);
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+.board-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
   gap: 1rem;
 }
 
-.category-card:hover {
-  transform: translateY(-3px);
-  border-color: var(--brand-blue);
-  box-shadow: var(--shadow-md);
+.category-sidebar {
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 0.8rem;
+  background: rgba(18, 19, 30, 0.85);
+  height: fit-content;
+  position: sticky;
+  top: 66px;
 }
 
-.category-icon {
-  width: 50px;
-  height: 50px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--brand-blue), var(--brand-purple));
+.sidebar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+
+.sidebar-head h2 {
+  font-size: 1rem;
+}
+
+.clear-btn {
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 0.2rem 0.45rem;
+  cursor: pointer;
+}
+
+.category-block {
+  margin-top: 0.45rem;
+}
+
+.category-item {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.category-item.active {
+  border-color: rgba(122, 162, 247, 0.45);
+  background: rgba(122, 162, 247, 0.14);
+  color: #fff;
+}
+
+.category-item.root {
+  font-weight: 600;
+}
+
+.category-item.child {
+  padding-left: 1.4rem;
+  margin-top: 0.2rem;
+}
+
+.name-btn {
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.right-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  color: white;
-  font-size: 1.2rem;
+  gap: 0.4rem;
 }
 
-.category-content {
-  flex: 1;
+.expand-btn {
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 5px;
+  width: 22px;
+  height: 22px;
+  line-height: 1;
+  cursor: pointer;
 }
 
-.category-name {
-  color: var(--text-primary);
-  margin-bottom: 0.25rem;
-  font-size: 1.1rem;
-}
-
-.category-count {
+.count {
+  font-size: 0.8rem;
   color: var(--text-tertiary);
+}
+
+.rank-main {
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 0.9rem;
+  background: rgba(18, 19, 30, 0.8);
+}
+
+.mobile-filter-row {
+  display: none;
+  margin-bottom: 0.7rem;
+}
+
+.mobile-filter-btn {
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 8px;
+  padding: 0.45rem 0.65rem;
+  cursor: pointer;
+}
+
+.state-card {
+  border: 1px dashed var(--border-color);
+  border-radius: 10px;
+  padding: 1.2rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.state-card.error {
+  color: var(--brand-red);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.rank-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.rank-table th,
+.rank-table td {
+  padding: 0.7rem 0.6rem;
+  border-bottom: 1px solid var(--border-light);
+  text-align: left;
+  vertical-align: top;
   font-size: 0.9rem;
 }
 
-.cta-section {
-  padding: 4rem 2rem;
-  text-align: center;
-  background: rgba(21, 22, 34, 0.8);
-  backdrop-filter: blur(10px);
-}
-
-.cta-content p {
-  font-size: 1.25rem;
-  color: var(--text-secondary);
-  margin-bottom: 2rem;
-}
-
-.cta-button {
-  background: linear-gradient(135deg, var(--brand-blue), var(--brand-purple));
-  color: white;
-  border: none;
-  padding: 1rem 2.5rem;
-  font-size: 1.1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all var(--transition-normal);
+.rank-table th {
+  color: var(--text-tertiary);
   font-weight: 500;
 }
 
-.cta-button:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
+.rank-row {
+  cursor: pointer;
+  transition: background var(--transition-fast);
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .platform-title {
-    font-size: 2.5rem;
-  }
-  
-  .navigation-grid {
+.rank-row:hover {
+  background: rgba(122, 162, 247, 0.08);
+}
+
+.skill-cell {
+  min-width: 260px;
+}
+
+.skill-name {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.skill-repo {
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  margin-top: 0.15rem;
+}
+
+.chips {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.chip {
+  border: 1px solid rgba(125, 207, 255, 0.35);
+  background: rgba(125, 207, 255, 0.12);
+  color: var(--brand-cyan);
+  border-radius: 999px;
+  padding: 0.12rem 0.5rem;
+  font-size: 0.72rem;
+}
+
+.chip.muted {
+  border-color: var(--border-color);
+  color: var(--text-tertiary);
+  background: transparent;
+}
+
+.pager {
+  margin-top: 0.95rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.pager-btn {
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 7px;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+}
+
+.pager-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 960px) {
+  .board-layout {
     grid-template-columns: 1fr;
   }
-  
-  .categories-grid {
-    grid-template-columns: 1fr;
+
+  .category-sidebar {
+    position: static;
+    display: none;
   }
-  
-  .stats-container {
-    grid-template-columns: 1fr;
+
+  .category-sidebar.open {
+    display: block;
+  }
+
+  .mobile-filter-row {
+    display: block;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero {
+    padding-top: 3rem;
+  }
+
+  .hero-actions {
+    flex-wrap: wrap;
+  }
+
+  .rank-table th:nth-child(3),
+  .rank-table td:nth-child(3) {
+    display: none;
   }
 }
 </style>
