@@ -115,7 +115,7 @@
           <span class="prompt">$confirm</span>
         </div>
         <div class="dialog-content">
-          <p>确认将 {{ selectedSkills.length }} 个技能绑定到 {{ selectedCategories.length }} 个分类？</p>
+          <p>{{ confirmMessage }}</p>
           <div class="dialog-actions">
             <button @click="showConfirmDialog = false" class="cancel-btn">
               <span class="keyword">$cancel</span>
@@ -146,6 +146,16 @@ const skillSearch = ref('')
 const operationStatus = ref<{type: 'success' | 'error', message: string} | null>(null)
 const showConfirmDialog = ref(false)
 const currentOperation = ref<'assign' | 'remove' | null>(null)
+
+// 确认对话框消息
+const confirmMessage = computed(() => {
+  if (currentOperation.value === 'assign') {
+    return `确认将 ${selectedSkills.value.length} 个技能绑定到 ${selectedCategories.value.length} 个分类？`
+  } else if (currentOperation.value === 'remove') {
+    return `确认将 ${selectedSkills.value.length} 个技能从 ${selectedCategories.value.length} 个分类中解绑？`
+  }
+  return ''
+})
 
 // 初始化数据
 onMounted(async () => {
