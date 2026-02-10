@@ -19,50 +19,14 @@
 
       <div v-else class="categories-layout">
         <!-- 分类树侧边栏 -->
-        <aside class="categories-sidebar">
-          <div class="sidebar-header">
-            <h2>分类树</h2>
-            <div class="category-stats">
-              共 {{ totalCategories }} 个分类
-            </div>
-          </div>
-          
-          <div class="category-tree">
-            <div 
-              v-for="cat in categories" 
-              :key="cat.id"
-              class="category-node"
-            >
-              <div 
-                class="category-item"
-                :class="{ expanded: expandedCategories.has(cat.id), active: selectedCategory?.id === cat.id }"
-                @click="toggleCategory(cat)"
-              >
-                <div class="category-toggle">
-                  <span class="toggle-icon" v-if="cat.children && cat.children.length > 0">
-                    {{ expandedCategories.has(cat.id) ? '▼' : '▶' }}
-                  </span>
-                  <span class="category-name">{{ cat.name }}</span>
-                </div>
-                <span class="skill-count">{{ cat.skill_count || 0 }}</span>
-              </div>
-              
-              <!-- 子分类 -->
-              <div v-if="cat.children && cat.children.length > 0 && expandedCategories.has(cat.id)" class="sub-categories">
-                <div
-                  v-for="child in cat.children"
-                  :key="child.id"
-                  class="sub-category-item"
-                  :class="{ active: selectedCategory?.id === child.id }"
-                  @click="viewCategory(child)"
-                >
-                  <span class="sub-category-name">{{ child.name }}</span>
-                  <span class="skill-count">{{ child.skill_count || 0 }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </aside>
+        <CategorySidebar
+          :categories="categories"
+          :selectedSlug="selectedCategory?.slug"
+          :showAllOption="false"
+          :initiallyExpanded="false"
+          :title="'分类树'"
+          @select="handleCategorySelect"
+        />
 
         <!-- 技能列表主区域 -->
         <main class="skills-main">
@@ -121,15 +85,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api'
+import CategorySidebar, { type CategoryItem } from '../components/CategorySidebar.vue'
 
 const route = useRoute()
 const router = useRouter()
 
-const categories = ref<any[]>([])
+const categories = ref<CategoryItem[]>([])
 const skills = ref<any[]>([])
-const selectedCategory = ref<any>(null)
+const selectedCategory = ref<CategoryItem | null>(null)
 const loading = ref(true)
-const expandedCategories = ref(new Set<number>())
 
 const totalCategories = computed(() => {
   let count = categories.value.length
@@ -165,7 +129,6 @@ async function findAndSelectCategory(slug: string) {
   for (const cat of categories.value) {
     if (cat.slug === slug) {
       selectedCategory.value = cat
-      expandedCategories.value.add(cat.id)
       await loadSkills(cat.id)
       return
     }
@@ -173,7 +136,6 @@ async function findAndSelectCategory(slug: string) {
       for (const child of cat.children) {
         if (child.slug === slug) {
           selectedCategory.value = child
-          expandedCategories.value.add(cat.id)
           await loadSkills(child.id)
           return
         }
@@ -191,29 +153,26 @@ async function loadSkills(categoryId: number) {
   }
 }
 
-function toggleCategory(cat: any) {
-  const isExpanded = expandedCategories.value.has(cat.id)
+function handleCategorySelect(slug: string) {
+  // 如果已经选中了该分类，不做任何操作
+  if (selectedCategory.value?.slug === slug) return
 
-  if (isExpanded) {
-    // 收起时只做收起操作
-    expandedCategories.value.delete(cat.id)
-  } else {
-    // 展开时
-    expandedCategories.value.add(cat.id)
-
-    // 如果有子分类，自动选择第一个
-    if (cat.children && cat.children.length > 0) {
-      viewCategory(cat.children[0])
-    } else {
-      // 没有子分类，直接选择当前分类
-      viewCategory(cat)
+  for (const cat of categories.value) {
+    if (cat.slug === slug) {
+      selectedCategory.value = cat
+      loadSkills(cat.id)
+      return
+    }
+    if (cat.children) {
+      for (const child of cat.children) {
+        if (child.slug === slug) {
+          selectedCategory.value = child
+          loadSkills(child.id)
+          return
+        }
+      }
     }
   }
-}
-
-function viewCategory(cat: any) {
-  selectedCategory.value = cat
-  loadSkills(cat.id)
 }
 
 function viewSkill(skill: any) {
@@ -299,130 +258,6 @@ function viewSkill(skill: any) {
   display: grid;
   grid-template-columns: 300px 1fr;
   gap: 2rem;
-}
-
-/* 侧边栏样式 */
-.categories-sidebar {
-  background: rgba(26, 27, 38, 0.7);
-  border: 1px solid var(--border-light);
-  border-radius: 12px;
-  padding: 1.5rem;
-  backdrop-filter: blur(10px);
-  height: fit-content;
-}
-
-.sidebar-header {
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-light);
-}
-
-.sidebar-header h2 {
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
-  font-size: 1.25rem;
-}
-
-.category-stats {
-  color: var(--text-tertiary);
-  font-size: 0.9rem;
-}
-
-.category-tree {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.category-node {
-  margin-bottom: 0.25rem;
-}
-
-.category-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  background: transparent;
-}
-
-.category-item:hover {
-  background: rgba(122, 162, 247, 0.1);
-}
-
-.category-item.expanded {
-  background: rgba(122, 162, 247, 0.15);
-  border-left: 3px solid var(--brand-blue);
-}
-
-.category-item.active {
-  background: rgba(122, 162, 247, 0.2);
-  border-left: 3px solid var(--brand-blue);
-}
-
-.category-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex: 1;
-}
-
-.toggle-icon {
-  color: var(--text-tertiary);
-  font-size: 0.8rem;
-  transition: transform var(--transition-fast);
-}
-
-.category-item.expanded .toggle-icon {
-  transform: rotate(90deg);
-}
-
-.category-name {
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
-.skill-count {
-  background: rgba(122, 162, 247, 0.2);
-  color: var(--brand-blue);
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.sub-categories {
-  margin-left: 1.5rem;
-  margin-top: 0.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.sub-category-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.sub-category-item:hover {
-  background: rgba(122, 162, 247, 0.1);
-}
-
-.sub-category-item.active {
-  background: rgba(122, 162, 247, 0.15);
-}
-
-.sub-category-name {
-  color: var(--text-secondary);
-  font-size: 0.95rem;
 }
 
 /* 主内容区域 */

@@ -14,7 +14,7 @@
       <div class="hero-inner">
         <p class="hero-badge">Discover · Rank · Reuse</p>
         <h1 class="hero-title">Skills Hub</h1>
-        <p class="hero-subtitle">像 skills.sh 一样高密度浏览技能，并在首页直接按分类筛选。</p>
+        <p class="hero-subtitle">东福Skill生态系统。</p>
         <div class="hero-actions">
           <button class="primary-btn" @click="scrollToBoard">浏览技能榜</button>
           <button class="ghost-btn" @click="$router.push('/categories')">进入分类页</button>
@@ -53,51 +53,13 @@
       </div>
 
       <div class="board-layout" v-if="!initialLoading">
-        <aside class="category-sidebar" :class="{ open: mobileFilterOpen }">
-          <div class="sidebar-head">
-            <h2>分类筛选</h2>
-            <button class="clear-btn" @click="clearCategory">清空</button>
-          </div>
-
-          <button
-            class="category-item root"
-            :class="{ active: selectedCategorySlug === 'all' }"
-            @click="selectCategory('all')"
-          >
-            <span>全部分类</span>
-          </button>
-
-          <div v-for="root in categories" :key="root.id" class="category-block">
-            <div class="category-item root" :class="{ active: selectedCategorySlug === root.slug }">
-              <button class="name-btn" @click="selectCategory(root.slug)">
-                {{ root.name }}
-              </button>
-              <div class="right-actions">
-                <span class="count">{{ root.skill_count || 0 }}</span>
-                <button
-                  v-if="root.children.length > 0"
-                  class="expand-btn"
-                  @click="toggleRoot(root.id)"
-                >
-                  {{ expandedRootIds.has(root.id) ? '−' : '+' }}
-                </button>
-              </div>
-            </div>
-
-            <div v-if="root.children.length > 0 && expandedRootIds.has(root.id)" class="children-list">
-              <button
-                v-for="child in root.children"
-                :key="child.id"
-                class="category-item child"
-                :class="{ active: selectedCategorySlug === child.slug }"
-                @click="selectCategory(child.slug)"
-              >
-                <span>{{ child.name }}</span>
-                <span class="count">{{ child.skill_count || 0 }}</span>
-              </button>
-            </div>
-          </div>
-        </aside>
+        <CategorySidebar
+          :categories="categories"
+          :selectedSlug="selectedCategorySlug"
+          :mobileOpen="mobileFilterOpen"
+          @select="selectCategory"
+          @clear="clearCategory"
+        />
 
         <main class="rank-main">
           <div class="mobile-filter-row">
@@ -179,18 +141,9 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, skillApi } from '../api'
+import CategorySidebar, { type CategoryItem } from '../components/CategorySidebar.vue'
 
 type RankTab = 'all' | 'trending' | 'starred'
-
-interface CategoryItem {
-  id: number
-  parent_id: number | null
-  name: string
-  slug: string
-  sort_order: number
-  skill_count: number
-  children: CategoryItem[]
-}
 
 const route = useRoute()
 const router = useRouter()
@@ -211,7 +164,6 @@ const initialLoading = ref(true)
 const loadingSkills = ref(false)
 const loadError = ref('')
 const mobileFilterOpen = ref(false)
-const expandedRootIds = ref<Set<number>>(new Set())
 
 const rankTabs = [
   { value: 'all', label: '全量榜' },
@@ -287,7 +239,6 @@ async function loadCategories() {
   try {
     const list = await api.get('/categories') as any[]
     categories.value = buildCategoryTree(list)
-    expandedRootIds.value = new Set(categories.value.map((item) => item.id))
   } catch {
     categories.value = []
   }
@@ -441,14 +392,6 @@ function selectCategory(slug: string) {
 
 function clearCategory() {
   selectCategory('all')
-}
-
-function toggleRoot(id: number) {
-  if (expandedRootIds.value.has(id)) {
-    expandedRootIds.value.delete(id)
-  } else {
-    expandedRootIds.value.add(id)
-  }
 }
 
 function changePage(page: number) {
