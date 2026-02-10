@@ -175,7 +175,7 @@ export const categoryApi = {
 
 // Skill API
 export const skillApi = {
-  async list(params: SkillListParams = {}): Promise<Skill[]> {
+  async list(params: SkillListParams = {}): Promise<PaginatedResponse<Skill>> {
     const searchParams = new URLSearchParams()
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined) {
@@ -183,7 +183,7 @@ export const skillApi = {
       }
     })
     const query = searchParams.toString()
-    return api.get<Skill[]>(`/skills${query ? `?${query}` : ''}`)
+    return api.get<PaginatedResponse<Skill>>(`/skills${query ? `?${query}` : ''}`)
   },
   async get(id: number): Promise<Skill> {
     return api.get<Skill>(`/skills/${id}`)

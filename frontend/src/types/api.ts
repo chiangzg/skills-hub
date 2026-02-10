@@ -149,6 +149,7 @@ export interface Skill {
   content?: string
   directory: string
   readme_url?: string
+  raw_content_url?: string
   tags: string[]
   technologies?: string[]
   repository?: {
@@ -157,6 +158,8 @@ export interface Skill {
     type: string
   }
   categories?: Category[]
+  views: number
+  stars: number
   created_at: string
   updated_at: string
 }

@@ -16,7 +16,10 @@
       "Bash(docker exec:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "mcp__chrome-mcp-server__*"
+      "mcp__chrome-mcp-server__*",
+      "Bash(dir:*)",
+      "Bash(docker compose up:*)",
+      "Bash(where:*)"
     ]
   }
 }

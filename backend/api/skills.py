@@ -75,11 +75,6 @@ async def list_skills(
     result = await db.execute(query)
     skills = result.scalars().all()
 
-    # 增加浏览计数
-    for skill in skills:
-        skill.views += 1
-    await db.commit()
-
     # 转换为响应
     items = []
     for skill in skills:

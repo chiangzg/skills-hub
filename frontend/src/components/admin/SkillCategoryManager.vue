@@ -71,6 +71,7 @@
             :key="cat.id"
             :category="cat"
             :level="getCategoryLevel(cat)"
+            :selectable="true"
             :is-selected="selectedCategories.includes(cat.id)"
             @select="toggleCategorySelection(cat.id)"
           />
@@ -156,8 +157,8 @@ async function loadData() {
   try {
     // 加载所有技能（包括未分类的）
     const allSkills = await skillApi.list({ page_size: 100 })
-    skills.value = allSkills.items
-    
+    skills.value = allSkills.items || []
+
     // 加载分类树
     const categoryTree = await categoryApi.getTree()
     categories.value = categoryTree
