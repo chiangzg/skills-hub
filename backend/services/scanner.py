@@ -3,6 +3,7 @@ Skill 扫描服务
 扫描仓库中的所有 Skills
 """
 import os
+import shutil
 from pathlib import Path
 from typing import List
 from datetime import datetime
@@ -44,28 +45,49 @@ class SkillScanner:
         # 1. 下载仓库
         extract_dir = await self._download_repo(repo, temp_dir)
 
-        # 2. 扫描目录
-        skills = []
-        for root, dirs, files in os.walk(extract_dir):
-            # 跳过隐藏目录
-            dirs[:] = [d for d in dirs if not d.startswith('.')]
+        # 确定需要清理的目录（解压目录的父目录）
+        # 仅在未指定 temp_dir 时才自动清理
+        cleanup_dir = None
+        if temp_dir is None:
+            # 向上找到临时父目录进行清理
+            # GitHub: temp_dir/owner_name_branch/root_dir -> cleanup temp_dir/owner_name_branch
+            # GitLab: temp_dir/owner_name_branch/root_dir -> cleanup temp_dir/owner_name_branch
+            cleanup_dir = extract_dir.parent
 
-            if 'SKILL.md' in files:
-                skill_md_path = Path(root) / 'SKILL.md'
-                metadata = skill_parser.parse_file(skill_md_path)
+        try:
+            # 2. 扫描目录
+            skills = []
+            for root, dirs, files in os.walk(extract_dir):
+                # 跳过隐藏目录
+                dirs[:] = [d for d in dirs if not d.startswith('.')]
 
-                # 计算相对路径
-                rel_path = Path(root).relative_to(extract_dir)
+                if 'SKILL.md' in files:
+                    skill_md_path = Path(root) / 'SKILL.md'
+                    metadata = skill_parser.parse_file(skill_md_path)
 
-                skills.append(SchemaSkillMetadata(
-                    name=metadata.name or rel_path.name,
-                    description=metadata.description,
-                    directory=str(rel_path),
-                    tags=metadata.tags
-                ))
+                    # 计算相对路径
+                    rel_path = Path(root).relative_to(extract_dir)
 
-        logger.info(f"Found {len(skills)} skills in {repo.full_name}")
-        return skills
+                    skills.append(SchemaSkillMetadata(
+                        name=metadata.name or rel_path.name,
+                        description=metadata.description,
+                        directory=str(rel_path),
+                        tags=metadata.tags
+                    ))
+
+            logger.info(f"Found {len(skills)} skills in {repo.full_name}")
+            return skills
+
+        finally:
+            # 3. 清理临时目录
+            if cleanup_dir and cleanup_dir.exists():
+                try:
+                    shutil.rmtree(cleanup_dir)
+                    logger.info(f"Cleaned up temporary directory: {cleanup_dir}")
+                except PermissionError:
+                    logger.warning(f"Permission denied when cleaning up {cleanup_dir}")
+                except Exception as e:
+                    logger.warning(f"Failed to cleanup temporary directory {cleanup_dir}: {e}")
 
     async def sync_repository(self, repo: Repository) -> dict:
         """
