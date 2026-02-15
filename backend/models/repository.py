@@ -31,6 +31,10 @@ class Repository(Base):
     webhook_enabled = Column(Boolean, default=False, nullable=False)
     enabled = Column(Boolean, default=True, nullable=False)
     last_sync_at = Column(DateTime, nullable=True)
+    # 缓存相关字段
+    cache_version = Column(String(64), nullable=True)  # 缓存版本标识（压缩包Hash）
+    cache_path = Column(String(500), nullable=True)  # 本地缓存绝对路径
+    cache_size = Column(Integer, default=0, nullable=False)  # 缓存占用空间（字节）
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # 关联的 skills
@@ -52,6 +56,11 @@ class Repository(Base):
             "enabled": self.enabled,
             "last_sync_at": self.last_sync_at.isoformat() if self.last_sync_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            # 缓存信息
+            "cache_version": self.cache_version,
+            "cache_path": self.cache_path,
+            "cache_size": self.cache_size,
+            "is_cached": bool(self.cache_path),
             # 不返回敏感信息
             "has_token": bool(self.access_token),
             "has_webhook_secret": bool(self.webhook_secret)

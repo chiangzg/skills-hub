@@ -111,7 +111,7 @@ async def get_skill(
     skill.views += 1
     await db.commit()
 
-    skill_dict = skill.to_dict(include_categories=True, include_repository=True)
+    skill_dict = skill.to_dict(include_categories=True, include_repository=True, include_cache=True)
     return SkillResponse(**skill_dict)
 
 

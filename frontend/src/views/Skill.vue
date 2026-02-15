@@ -105,14 +105,21 @@
           <div class="actions-card">
             <h3 class="card-title">操作</h3>
             <div class="action-buttons">
-              <button 
+              <button
                 v-if="skill.readme_url"
-                :href="skill.readme_url" 
-                target="_blank" 
+                @click="openReadme"
                 class="action-button primary"
               >
                 <span class="button-icon">📖</span>
                 查看文档
+              </button>
+              <button
+                v-if="skill.cli_command"
+                @click="copyCliCommand"
+                class="action-button download"
+              >
+                <span class="button-icon">📋</span>
+                {{ copyButtonText }}
               </button>
               <button class="action-button secondary">
                 <span class="button-icon">⭐</span>
@@ -122,6 +129,10 @@
                 <span class="button-icon">📤</span>
                 分享
               </button>
+            </div>
+            <!-- CLI 命令展示 -->
+            <div v-if="skill.cli_command" class="cli-command-box">
+              <code class="cli-command">{{ skill.cli_command }}</code>
             </div>
           </div>
 
@@ -171,6 +182,7 @@ import DOMPurify from 'dompurify'
 const route = useRoute()
 const skill = ref<any>(null)
 const loading = ref(true)
+const copyButtonText = ref('复制下载命令')
 
 onMounted(async () => {
   const id = Number(route.params.id)
@@ -200,6 +212,37 @@ function renderMarkdown(content: string) {
     ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'code', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'blockquote', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
     ALLOWED_ATTR: ['href', 'title', 'class']
   })
+}
+
+function openReadme() {
+  if (skill.value?.readme_url) {
+    window.open(skill.value.readme_url, '_blank')
+  }
+}
+
+async function copyCliCommand() {
+  if (!skill.value?.cli_command) return
+  
+  try {
+    await navigator.clipboard.writeText(skill.value.cli_command)
+    copyButtonText.value = '已复制!'
+    setTimeout(() => {
+      copyButtonText.value = '复制下载命令'
+    }, 2000)
+  } catch (err) {
+    console.error('Failed to copy:', err)
+    // 降级方案：使用传统复制方法
+    const textArea = document.createElement('textarea')
+    textArea.value = skill.value.cli_command
+    document.body.appendChild(textArea)
+    textArea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textArea)
+    copyButtonText.value = '已复制!'
+    setTimeout(() => {
+      copyButtonText.value = '复制下载命令'
+    }, 2000)
+  }
 }
 </script>
 
@@ -541,8 +584,35 @@ function renderMarkdown(content: string) {
   color: var(--brand-blue);
 }
 
+.action-button.download {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.action-button.download:hover {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
 .button-icon {
   font-size: 1.2rem;
+}
+
+.cli-command-box {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(15, 15, 25, 0.8);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.cli-command {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.9rem;
+  color: var(--brand-cyan);
+  white-space: nowrap;
 }
 
 .tech-tags {

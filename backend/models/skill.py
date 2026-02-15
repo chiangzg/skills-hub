@@ -18,6 +18,7 @@ class Skill(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     directory = Column(String(500), nullable=False)  # 在仓库中的目录路径
+    local_path = Column(String(500), nullable=True)  # 本地缓存中的绝对路径
     repo_owner = Column(String(100), nullable=True)
     repo_name = Column(String(100), nullable=True)
     repo_branch = Column(String(50), nullable=True)
@@ -38,10 +39,13 @@ class Skill(Base):
         back_populates="skills"
     )
 
+    # 一对多关系：文件列表
+    files = relationship("SkillFile", back_populates="skill", cascade="all, delete-orphan")
+
     def __repr__(self):
         return f"<Skill(id={self.id}, name='{self.name}', directory='{self.directory}')>"
 
-    def to_dict(self, include_categories: bool = False, include_repository: bool = False) -> dict:
+    def to_dict(self, include_categories: bool = False, include_repository: bool = False, include_cache: bool = False) -> dict:
         """转换为字典"""
         data = {
             "id": self.id,
@@ -59,6 +63,12 @@ class Skill(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
+
+        # 缓存相关信息
+        if include_cache:
+            data["local_path"] = self.local_path
+            data["is_cached"] = bool(self.local_path)
+            data["cli_command"] = f"skill download {self.name}"
 
         if include_categories and self.categories:
             data["categories"] = [
