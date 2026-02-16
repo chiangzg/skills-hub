@@ -11,6 +11,10 @@
         </div>
         
         <div class="header-right">
+          <button @click="goHome" class="home-button">
+            <span class="button-icon">🏠</span>
+            返回首页
+          </button>
           <div class="user-info">
             <span class="username">{{ username }}</span>
             <span class="role-badge" :class="userRole">{{ userRole === 'admin' ? '管理员' : '普通用户' }}</span>
@@ -184,6 +188,10 @@ function handleUserChange() {
   loadDataCounts()
 }
 
+function goHome() {
+  router.push('/')
+}
+
 function logout() {
   localStorage.removeItem('token')
   localStorage.removeItem('userRole')
@@ -272,6 +280,26 @@ function logout() {
 .role-badge.user {
   background: rgba(122, 162, 247, 0.2);
   color: var(--brand-blue);
+}
+
+.home-button {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.home-button:hover {
+  border-color: var(--brand-blue);
+  color: var(--brand-blue);
+  background: rgba(122, 162, 247, 0.1);
 }
 
 .logout-button {
