@@ -5,10 +5,10 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=mysql+aiomysql://skills:skills_password@db:3306/skills
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
-      - ENVIRONMENT=production
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+      - ENVIRONMENT=${ENVIRONMENT}
     depends_on:
       db:
         condition: service_healthy
@@ -28,10 +28,10 @@ services:
     image: mysql:8.0
     container_name: skills-mysql
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root_password}
-      - MYSQL_DATABASE=skills
-      - MYSQL_USER=skills
-      - MYSQL_PASSWORD=skills_password
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
