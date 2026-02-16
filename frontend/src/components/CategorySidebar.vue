@@ -17,6 +17,17 @@
       <span>全部分类</span>
     </button>
 
+    <!-- 未分类选项 -->
+    <button
+      v-if="showUncategorized"
+      class="category-item root uncategorized"
+      :class="{ active: isSelected('uncategorized') }"
+      @click="handleSelect('uncategorized')"
+    >
+      <span>未分类</span>
+      <span class="count">{{ uncategorizedCount }}</span>
+    </button>
+
     <!-- 分类树 -->
     <div v-for="root in categories" :key="root.id" class="category-block">
       <div
@@ -71,6 +82,8 @@ interface Props {
   categories: CategoryItem[]
   selectedSlug?: string
   showAllOption?: boolean
+  showUncategorized?: boolean
+  uncategorizedCount?: number
   initiallyExpanded?: boolean
   mobileOpen?: boolean
   title?: string
@@ -79,6 +92,8 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   selectedSlug: 'all',
   showAllOption: true,
+  showUncategorized: false,
+  uncategorizedCount: 0,
   initiallyExpanded: true,
   mobileOpen: false,
   title: '分类筛选'

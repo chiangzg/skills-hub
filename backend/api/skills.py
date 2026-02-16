@@ -20,6 +20,7 @@ async def list_skills(
     keyword: str | None = None,
     category_id: int | None = None,
     repository_id: int | None = None,
+    uncategorized: bool = False,
     page: int = 1,
     page_size: int = 20,
     sort_by: str = "created_at",
@@ -27,7 +28,11 @@ async def list_skills(
     current_user: User | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """搜索/浏览 Skills"""
+    """搜索/浏览 Skills
+    
+    Args:
+        uncategorized: 为 True 时返回未分配任何分类的技能（与 category_id 互斥，优先级更高）
+    """
     # 构建查询
     query = select(Skill).options(
         selectinload(Skill.categories),
@@ -47,8 +52,11 @@ async def list_skills(
                 )
             )
 
-    # 分类筛选
-    if category_id:
+    # 分类筛选（uncategorized 与 category_id 互斥，uncategorized 优先）
+    if uncategorized:
+        # 查询没有关联任何分类的技能
+        query = query.where(~Skill.categories.any())
+    elif category_id:
         query = query.join(Skill.categories).where(Category.id == category_id)
 
     # 仓库筛选

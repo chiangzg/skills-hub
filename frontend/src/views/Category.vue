@@ -23,6 +23,8 @@
           :categories="categories"
           :selectedSlug="selectedCategory?.slug"
           :showAllOption="false"
+          :showUncategorized="true"
+          :uncategorizedCount="uncategorizedCount"
           :initiallyExpanded="false"
           :title="'分类树'"
           @select="handleCategorySelect"
@@ -94,6 +96,18 @@ const categories = ref<CategoryItem[]>([])
 const skills = ref<any[]>([])
 const selectedCategory = ref<CategoryItem | null>(null)
 const loading = ref(true)
+const uncategorizedCount = ref(0)
+
+// 虚拟的"未分类"分类项
+const uncategorizedCategory: CategoryItem = {
+  id: -1,
+  parent_id: null,
+  name: '未分类',
+  slug: 'uncategorized',
+  sort_order: 0,
+  skill_count: 0,
+  children: []
+}
 
 const totalCategories = computed(() => {
   let count = categories.value.length
@@ -120,12 +134,31 @@ async function loadCategories() {
   try {
     const data = await api.get('/categories/tree')
     categories.value = data
+    // 同时加载未分类技能数量
+    await loadUncategorizedCount()
   } catch (e) {
     console.error('Failed to load categories:', e)
   }
 }
 
+async function loadUncategorizedCount() {
+  try {
+    const data = await api.get('/skills?uncategorized=true&page_size=1')
+    uncategorizedCount.value = data.total || 0
+  } catch (e) {
+    console.error('Failed to load uncategorized count:', e)
+    uncategorizedCount.value = 0
+  }
+}
+
 async function findAndSelectCategory(slug: string) {
+  // 处理"未分类"选项
+  if (slug === 'uncategorized') {
+    selectedCategory.value = { ...uncategorizedCategory, skill_count: uncategorizedCount.value }
+    await loadUncategorizedSkills()
+    return
+  }
+  
   for (const cat of categories.value) {
     if (cat.slug === slug) {
       selectedCategory.value = cat
@@ -153,9 +186,26 @@ async function loadSkills(categoryId: number) {
   }
 }
 
+async function loadUncategorizedSkills() {
+  try {
+    const data = await api.get('/skills?uncategorized=true&page_size=100')
+    skills.value = data.items || []
+  } catch (e) {
+    console.error('Failed to load uncategorized skills:', e)
+    skills.value = []
+  }
+}
+
 function handleCategorySelect(slug: string) {
   // 如果已经选中了该分类，不做任何操作
   if (selectedCategory.value?.slug === slug) return
+
+  // 处理"未分类"选项
+  if (slug === 'uncategorized') {
+    selectedCategory.value = { ...uncategorizedCategory, skill_count: uncategorizedCount.value }
+    loadUncategorizedSkills()
+    return
+  }
 
   for (const cat of categories.value) {
     if (cat.slug === slug) {
