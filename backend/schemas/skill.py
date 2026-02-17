@@ -15,7 +15,6 @@ class SkillResponse(SkillBase):
     id: int
     repository_id: int | None
     directory: str
-    local_path: str | None = None
     repo_owner: str | None
     repo_name: str | None
     repo_branch: str | None
@@ -27,8 +26,6 @@ class SkillResponse(SkillBase):
     updated_at: str
     categories: list[dict] = []
     repository: dict | None = None
-    # 缓存相关字段
-    is_cached: bool = False
     cli_command: str | None = None
 
     class Config:

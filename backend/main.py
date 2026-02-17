@@ -22,7 +22,7 @@ from middleware.security import SecurityHeadersMiddleware, LoggingMiddleware, Ra
 from database import init_db
 
 # API 路由
-from api import auth, users, repositories, categories, skills, webhooks, sync, public_categories, public
+from api import auth, users, repositories, categories, skills, webhooks, sync, public_categories
 
 
 @asynccontextmanager
@@ -80,7 +80,6 @@ app.add_exception_handler(Exception, general_exception_handler)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(public_categories.router)  # 公开分类 API（无需认证）
-app.include_router(public.router)  # 公开下载 API（无需认证）
 app.include_router(repositories.router)
 app.include_router(categories.router)  # 管理员分类 API（需要认证）
 app.include_router(skills.router)

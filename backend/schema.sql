@@ -32,9 +32,6 @@ CREATE TABLE IF NOT EXISTS repositories (
     webhook_enabled BOOLEAN DEFAULT FALSE,
     enabled BOOLEAN DEFAULT TRUE,
     last_sync_at TIMESTAMP NULL,
-    cache_version VARCHAR(64) COMMENT '缓存版本标识（压缩包Hash）',
-    cache_path VARCHAR(500) COMMENT '本地缓存绝对路径',
-    cache_size BIGINT DEFAULT 0 COMMENT '缓存占用空间（字节）',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_type_enabled (type, enabled),
     INDEX idx_owner_name (owner, name)
@@ -63,7 +60,6 @@ CREATE TABLE IF NOT EXISTS skills (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     directory VARCHAR(500) NOT NULL,
-    local_path VARCHAR(500) COMMENT '本地缓存中的绝对路径',
     repo_owner VARCHAR(100),
     repo_name VARCHAR(100),
     repo_branch VARCHAR(50),
@@ -102,46 +98,9 @@ CREATE TABLE IF NOT EXISTS webhooks (
     INDEX idx_triggered_at (triggered_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 7. skill_files 表（Skill 文件索引）[新增]
-CREATE TABLE IF NOT EXISTS skill_files (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    skill_id INT NOT NULL,
-    file_path VARCHAR(500) NOT NULL COMMENT '相对于 Skill 目录的文件路径',
-    file_name VARCHAR(255) NOT NULL COMMENT '文件名',
-    file_size INT DEFAULT 0 COMMENT '文件大小（字节）',
-    file_type VARCHAR(50) DEFAULT 'text' COMMENT '文件类型',
-    is_main BOOLEAN DEFAULT FALSE COMMENT '是否为主文件 SKILL.md',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE,
-    INDEX idx_skill_id (skill_id),
-    INDEX idx_file_path (file_path(100))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 8. cache_config 表（缓存配置）[新增]
-CREATE TABLE IF NOT EXISTS cache_config (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    config_key VARCHAR(100) NOT NULL UNIQUE,
-    config_value TEXT NOT NULL,
-    description VARCHAR(500),
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_config_key (config_key)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- ============================================
 -- 数据初始化
 -- ============================================
-
--- 初始化缓存配置
-INSERT INTO cache_config (config_key, config_value, description) VALUES
-('cache_base_path', './cache', '缓存根目录'),
-('max_cache_size_gb', '10', '最大缓存大小 GB'),
-('max_file_size_mb', '10', '单个文件最大大小 MB'),
-('max_skill_size_mb', '50', '单个 Skill 最大总大小 MB'),
-('cleanup_strategy', 'lru', '缓存清理策略'),
-('skill_hub_url', 'http://localhost:8000', 'Skill Hub 服务器地址（用于 CLI）'),
-('skill_download_dir', './skills', 'CLI 默认下载目录')
-ON DUPLICATE KEY UPDATE config_key=config_key;
 
 -- 初始化 admin 账号（密码: Admin@123）
 -- 注意：实际部署时需要修改密码
