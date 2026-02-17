@@ -14,6 +14,7 @@ class SkillResponse(SkillBase):
     """Skill 响应 Schema"""
     id: int
     repository_id: int | None
+    content: str | None = None
     directory: str
     repo_owner: str | None
     repo_name: str | None
@@ -56,5 +57,6 @@ class SkillMetadata(BaseModel):
     """Skill 元数据 Schema（用于解析 SKILL.md）"""
     name: str | None = None
     description: str | None = None
+    content: str | None = None
     directory: str | None = None
     tags: list[str] = []

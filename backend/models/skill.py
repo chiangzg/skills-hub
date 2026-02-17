@@ -17,7 +17,8 @@ class Skill(Base):
     repository_id = Column(Integer, ForeignKey("repositories.id"), nullable=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    directory = Column(String(500), nullable=False)  # 在仓库中的目录路径
+    content = Column(Text, nullable=True)
+    directory = Column(String(500), nullable=False)
     repo_owner = Column(String(100), nullable=True)
     repo_name = Column(String(100), nullable=True)
     repo_branch = Column(String(50), nullable=True)
@@ -48,6 +49,7 @@ class Skill(Base):
             "repository_id": self.repository_id,
             "name": self.name,
             "description": self.description,
+            "content": self.content,
             "directory": self.directory,
             "repo_owner": self.repo_owner,
             "repo_name": self.repo_name,

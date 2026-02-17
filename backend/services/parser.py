@@ -59,9 +59,12 @@ class SkillParser:
             if not isinstance(metadata, dict):
                 return SkillMetadata()
 
+            body_content = match.group(2).strip() if match.group(2) else None
+
             return SkillMetadata(
                 name=metadata.get('name'),
                 description=metadata.get('description'),
+                content=body_content,
                 tags=metadata.get('tags', [])
             )
         except yaml.YAMLError as e:

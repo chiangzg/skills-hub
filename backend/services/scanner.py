@@ -113,6 +113,7 @@ class SkillScanner:
                     skills_metadata.append(SchemaSkillMetadata(
                         name=metadata.name or rel_path.name,
                         description=metadata.description,
+                        content=metadata.content,
                         directory=str(rel_path),
                         tags=metadata.tags
                     ))
@@ -147,17 +148,21 @@ class SkillScanner:
                         existing.description = metadata.description
                         changed = True
 
+                    if existing.content != metadata.content:
+                        existing.content = metadata.content
+                        changed = True
+
                     if changed:
                         existing.updated_at = datetime.utcnow()
                         updated += 1
                     else:
                         unchanged += 1
                 else:
-                    # 新增 skill
                     skill = Skill(
                         repository_id=repo.id,
                         name=metadata.name or Path(metadata.directory).name,
                         description=metadata.description,
+                        content=metadata.content,
                         directory=metadata.directory,
                         repo_owner=repo.owner,
                         repo_name=repo.name,

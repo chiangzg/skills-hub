@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS skills (
     repository_id INT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
+    content LONGTEXT,
     directory VARCHAR(500) NOT NULL,
     repo_owner VARCHAR(100),
     repo_name VARCHAR(100),
