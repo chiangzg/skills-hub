@@ -246,7 +246,7 @@ class SkillScanner:
             return f"https://github.com/{repo.full_name}/tree/{repo.branch}/{directory}"
         else:  # GITLAB
             base_url = repo.gitlab_url or "https://gitlab.com"
-            return f"{base_url}/{repo.full_name}/-/tree/{repo.branch}/{directory}"
+            return f"{base_url}/{repo.full_name}/tree/{repo.branch}/{directory}"
 
     def _build_raw_url(self, repo: Repository, directory: str) -> str:
         """构建原始文件 URL"""
@@ -254,4 +254,4 @@ class SkillScanner:
             return f"https://github.com/{repo.full_name}/raw/{repo.branch}/{directory}/SKILL.md"
         else:  # GITLAB
             base_url = repo.gitlab_url or "https://gitlab.com"
-            return f"{base_url}/{repo.full_name}/-/raw/{repo.branch}/{directory}/SKILL.md"
+            return f"{base_url}/{repo.full_name}/raw/{repo.branch}/{directory}/SKILL.md"

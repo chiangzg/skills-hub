@@ -47,17 +47,16 @@ class GitLabService:
 
     def get_archive_zip_url(self, owner: str, name: str, branch: str) -> str:
         """获取仓库归档 ZIP URL（如果有）"""
-        return f"{self.base_url}/{owner}/{name}/-/archive/{branch}/{name}-{branch}.zip"
+        return f"{self.base_url}/{owner}/{name}/archive/{branch}/{name}-{branch}.zip"
 
     def get_raw_url(self, owner: str, name: str, branch: str, path: str) -> str:
         """获取原始文件 URL"""
-        return f"{self.base_url}/{owner}/{name}/-/raw/{branch}/{path}"
+        return f"{self.base_url}/{owner}/{name}/raw/{branch}/{path}"
 
     def get_readme_url(self, owner: str, name: str, branch: str, directory: str = "") -> str:
-        """获取 README URL"""
         if directory:
-            return f"{self.base_url}/{owner}/{name}/-/tree/{branch}/{directory}"
-        return f"{self.base_url}/{owner}/{name}/-/tree/{branch}"
+            return f"{self.base_url}/{owner}/{name}/tree/{branch}/{directory}"
+        return f"{self.base_url}/{owner}/{name}/tree/{branch}"
 
     async def validate_repository(
         self,

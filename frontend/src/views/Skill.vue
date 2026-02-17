@@ -111,7 +111,7 @@
                 class="action-button primary"
               >
                 <span class="button-icon">📖</span>
-                查看文档
+                查看仓库
               </button>
               <button
                 v-if="skill.cli_command"
@@ -121,18 +121,14 @@
                 <span class="button-icon">📋</span>
                 {{ copyButtonText }}
               </button>
-              <button class="action-button secondary">
-                <span class="button-icon">⭐</span>
-                收藏
-              </button>
-              <button class="action-button secondary">
+              <button
+                @click="shareSkill"
+                class="action-button secondary"
+                :class="{ 'copied': shareButtonText !== '分享' }"
+              >
                 <span class="button-icon">📤</span>
-                分享
+                {{ shareButtonText }}
               </button>
-            </div>
-            <!-- CLI 命令展示 -->
-            <div v-if="skill.cli_command" class="cli-command-box">
-              <code class="cli-command">{{ skill.cli_command }}</code>
             </div>
           </div>
 
@@ -153,8 +149,27 @@
           <!-- 相关技能 -->
           <div class="related-card">
             <h3 class="card-title">相关技能</h3>
-            <div class="related-list">
+            <div v-if="loadingRelated" class="related-list">
               <div class="related-item skeleton" v-for="i in 3" :key="i"></div>
+            </div>
+            <div v-else-if="relatedSkills.length > 0" class="related-list">
+              <div
+                v-for="relatedSkill in relatedSkills"
+                :key="relatedSkill.id"
+                class="related-item"
+                @click="goToSkill(relatedSkill.id)"
+              >
+                <div class="related-skill-name">{{ relatedSkill.name }}</div>
+                <div class="related-skill-meta">
+                  <span v-if="relatedSkill.stars > 0" class="related-stars">⭐ {{ relatedSkill.stars }}</span>
+                  <span class="related-desc" v-if="relatedSkill.description">
+                    {{ relatedSkill.description.slice(0, 30) }}{{ relatedSkill.description.length > 30 ? '...' : '' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div v-else class="related-empty">
+              暂无相关技能
             </div>
           </div>
         </aside>
@@ -173,26 +188,69 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
+import type { Skill } from '../types/api'
 
 const route = useRoute()
-const skill = ref<any>(null)
+const router = useRouter()
+const skill = ref<Skill | null>(null)
 const loading = ref(true)
-const copyButtonText = ref('复制下载命令')
+const copyButtonText = ref('复制安装命令')
+const relatedSkills = ref<Skill[]>([])
+const loadingRelated = ref(false)
+const shareButtonText = ref('分享')
 
 onMounted(async () => {
   const id = Number(route.params.id)
   try {
     skill.value = await api.get(`/skills/${id}`)
+    // 获取相关技能
+    await loadRelatedSkills()
   } catch (e) {
     console.error('Failed to load skill:', e)
   }
   loading.value = false
 })
+
+// 当路由参数变化时重新加载
+watch(() => route.params.id, async (newId) => {
+  if (newId) {
+    loading.value = true
+    try {
+      skill.value = await api.get(`/skills/${Number(newId)}`)
+      await loadRelatedSkills()
+    } catch (e) {
+      console.error('Failed to load skill:', e)
+    }
+    loading.value = false
+  }
+})
+
+async function loadRelatedSkills() {
+  if (!skill.value || !skill.value.categories || skill.value.categories.length === 0) {
+    relatedSkills.value = []
+    return
+  }
+
+  loadingRelated.value = true
+  try {
+    // 获取第一个分类的其他技能
+    const categoryId = skill.value.categories[0].id
+    const response = await api.get<{items: Skill[], total: number}>(`/skills?category_id=${categoryId}&sort_by=stars&sort_order=desc&page_size=10`)
+    // 过滤掉当前技能，并限制显示数量
+    relatedSkills.value = response.items
+      .filter(s => s.id !== skill.value?.id)
+      .slice(0, 5)
+  } catch (e) {
+    console.error('Failed to load related skills:', e)
+    relatedSkills.value = []
+  }
+  loadingRelated.value = false
+}
 
 function formatDate(dateString: string) {
   if (!dateString) return 'Unknown'
@@ -225,9 +283,9 @@ async function copyCliCommand() {
   
   try {
     await navigator.clipboard.writeText(skill.value.cli_command)
-    copyButtonText.value = '已复制!'
+    copyButtonText.value = '已复制！'
     setTimeout(() => {
-      copyButtonText.value = '复制下载命令'
+      copyButtonText.value = '复制安装命令'
     }, 2000)
   } catch (err) {
     console.error('Failed to copy:', err)
@@ -238,11 +296,40 @@ async function copyCliCommand() {
     textArea.select()
     document.execCommand('copy')
     document.body.removeChild(textArea)
-    copyButtonText.value = '已复制!'
+    copyButtonText.value = '已复制！'
     setTimeout(() => {
-      copyButtonText.value = '复制下载命令'
+      copyButtonText.value = '复制安装命令'
     }, 2000)
   }
+}
+
+async function shareSkill() {
+  const url = window.location.href
+  
+  try {
+    await navigator.clipboard.writeText(url)
+    shareButtonText.value = '链接已复制！'
+    setTimeout(() => {
+      shareButtonText.value = '分享'
+    }, 2500)
+  } catch (err) {
+    console.error('Failed to copy:', err)
+    // 降级方案：使用传统复制方法
+    const textArea = document.createElement('textarea')
+    textArea.value = url
+    document.body.appendChild(textArea)
+    textArea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textArea)
+    shareButtonText.value = '链接已复制！'
+    setTimeout(() => {
+      shareButtonText.value = '分享'
+    }, 2500)
+  }
+}
+
+function goToSkill(skillId: number) {
+  router.push(`/skills/${skillId}`)
 }
 </script>
 
@@ -595,24 +682,14 @@ async function copyCliCommand() {
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
+.action-button.secondary.copied {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  color: #10b981;
+}
+
 .button-icon {
   font-size: 1.2rem;
-}
-
-.cli-command-box {
-  margin-top: 1rem;
-  padding: 0.75rem 1rem;
-  background: rgba(15, 15, 25, 0.8);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  overflow-x: auto;
-}
-
-.cli-command {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 0.9rem;
-  color: var(--brand-cyan);
-  white-space: nowrap;
 }
 
 .tech-tags {
@@ -635,12 +712,59 @@ async function copyCliCommand() {
   gap: 0.75rem;
 }
 
+.related-item {
+  padding: 0.75rem;
+  background: rgba(37, 38, 55, 0.5);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.related-item:hover {
+  background: rgba(122, 162, 247, 0.1);
+  border-color: var(--brand-blue);
+  transform: translateX(4px);
+}
+
 .related-item.skeleton {
   height: 60px;
   background: linear-gradient(90deg, var(--border-color) 25%, transparent 50%, var(--border-color) 75%);
   background-size: 200% 100%;
   animation: loading 1.5s infinite;
   border-radius: 8px;
+}
+
+.related-skill-name {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+
+.related-skill-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.related-stars {
+  color: #fbbf24;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.related-desc {
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+}
+
+.related-empty {
+  text-align: center;
+  padding: 1.5rem;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
 }
 
 .not-found-state {
