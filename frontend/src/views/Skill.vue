@@ -80,8 +80,8 @@
             <div class="card-header">
               <h2 class="section-title">文档说明</h2>
               <a 
-                v-if="skill.readme_url" 
-                :href="skill.readme_url" 
+                v-if="skill.raw_content_url" 
+                :href="skill.raw_content_url" 
                 target="_blank" 
                 class="external-link"
               >
